@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/GameLauncher">
+        <file>user.png</file>
+        <file>Login_BG.png</file>
+        <file>EATER.PNG</file>
+        <file>YM.png</file>
+    </qresource>
+</RCC>
