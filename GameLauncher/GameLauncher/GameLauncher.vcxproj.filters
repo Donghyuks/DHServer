@@ -45,13 +45,18 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="GamePlayLauncher.h">
-      <Filter>Header Files</Filter>
-    </QtMoc>
-  </ItemGroup>
-  <ItemGroup>
     <QtUic Include="GamePlayLauncher.ui">
       <Filter>Form Files</Filter>
     </QtUic>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PathNote.htm">
+      <Filter>Form Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="GamePlayLauncher.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
   </ItemGroup>
 </Project>
