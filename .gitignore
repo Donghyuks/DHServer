@@ -7,7 +7,6 @@ x64/
 *.DotSettings
 *.recipe
 
-
 # Prerequisites
 *.d
 
@@ -24,7 +23,6 @@ x64/
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
 
 # Fortran module files
 *.mod
@@ -34,8 +32,6 @@ x64/
 *.lai
 *.la
 *.a
-*.lib
-
 # Executables
 *.exe
 *.out
