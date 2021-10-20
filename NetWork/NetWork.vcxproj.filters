@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="NetWork\SharedStruct">
+      <UniqueIdentifier>{6f596254-21e7-4b1a-9d58-c61e15085437}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NetWork.cpp">
@@ -34,6 +37,15 @@
     </ClInclude>
     <ClInclude Include="Client.h">
       <Filter>NetWork\Client</Filter>
+    </ClInclude>
+    <ClInclude Include="NetWorkDefine.h">
+      <Filter>NetWork\SharedStruct</Filter>
+    </ClInclude>
+    <ClInclude Include="SharedNetWorkStruct.h">
+      <Filter>NetWork\SharedStruct</Filter>
+    </ClInclude>
+    <ClInclude Include="SharedPacket.h">
+      <Filter>NetWork\SharedStruct</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
