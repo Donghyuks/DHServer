@@ -13,6 +13,8 @@ GamePlayLauncher::GamePlayLauncher(QDialog*parent)
 	Red_Brush = new QBrush(Qt::red);
 	Bold_Rarge = new QFont("century gothic", 20, QFont::Bold);
 
+	connect(ui.pushButton_3, SIGNAL(clicked()), this, SLOT(PushGameStartButton()));	// 푸쉬버튼 등록
+
 	// 트리 리스트의 칼럼 간격조정
 	ui.treeWidget->setColumnWidth(0, 150);
 
@@ -37,6 +39,12 @@ GamePlayLauncher::GamePlayLauncher(QDialog*parent)
 
 GamePlayLauncher::~GamePlayLauncher()
 {
+}
+
+void GamePlayLauncher::PushGameStartButton()
+{
+	// SVN 업데이트 실행 ( SVN은 디폴트로 다음과 같은 경로에 깔린다 => C:\\Program Files\\TortoiseSVN\\bin )
+	system("cd C:\\Program Files\\TortoiseSVN\\bin && TortoiseProc.exe /command:update /path:D:\\GA2ndFinal_Eater && D:\\GA2ndFinal_Eater\\1_Executable\\TestFile\\Eater.txt");
 }
 
 QString GamePlayLauncher::ConvertKR(QByteArray _Text)

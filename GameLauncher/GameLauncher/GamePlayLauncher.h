@@ -24,6 +24,9 @@ public:
 	GamePlayLauncher(QDialog*parent = Q_NULLPTR);
 	~GamePlayLauncher();
 
+public slots:
+	void PushGameStartButton();
+
 private:
 	Ui::GamePlayLauncher ui;
 	QTextCodec* codec;	// 한글 사용을 위한 코덱

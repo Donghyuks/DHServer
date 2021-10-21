@@ -14,5 +14,4 @@ void GameLauncher::ButtonClicked()
     this->hide();
     GamePlayLauncher playLauncher;
     playLauncher.exec();
-    //QMessageBox::information(this, "Title", "Hello");
 }
