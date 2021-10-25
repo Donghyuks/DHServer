@@ -1,38 +1,45 @@
 #pragma once
 
+#include "NetWorkBase.h"
+
 #ifdef NETWORK_EXPORTS
 #define NETWORK_DLL __declspec(dllexport)
 #else
 #define NETWORK_DLL __declspec(dllimport)
 #endif
 
-#include "SharedNetWorkStruct.h"
-#include "SharedPacket.h"
-#include <memory>
-#include <vector>
-#include <list>
-#include <map>
-#include <thread>
-#include <concurrent_queue.h>
-
-class NETWORK_DLL Server
+class NETWORK_DLL Server : public NetWorkBase
 {
 	/// 전역 변수 및 전역 함수.
 public:
 	static unsigned short	MAX_USER_COUNT;
-	/// Accept시 반영할 함수.
-	static int CALLBACK AcceptFunction(LPWSABUF lpCallerId, LPWSABUF lpCallerData, LPQOS lpSQOS, LPQOS lpGQOS, LPWSABUF lpCalleeId, LPWSABUF lpCalleeData, GROUP FAR* g, DWORD_PTR dwCallbackData);
 
 private:
 	unsigned short			PORT = 9000;
-	CRITICAL_SECTION		g_SCS;			// 서버 내에서 쓰는 크리티컬 섹션
-	CRITICAL_SECTION		g_Aceept_CS;	// 서버 Accept데이터를 접근하기 위해 생성한 크리티컬 섹션.
+
+	/// Overlapped IO 를 미리 생성하고 쓰기 위함.
+	ObjectPool<Overlapped_Struct>* Available_Overlapped;	// 사용가능한 오버랩드
 
 	/// Recv시 데이터를 저장 해둘 부분.
-	Concurrency::concurrent_queue<Packet_Header*> Recv_Data_Queue;
+	tbb::concurrent_queue<Network_Message*> Recv_Data_Queue;
 
 	/// 클라이언트 소켓에대한 포인터.
-	std::list<std::shared_ptr<Socket_Struct>> g_Client_Socket_List;
+	//std::list<std::shared_ptr<Socket_Struct>> g_Client_Socket_List;
+	//////////////////////////////////////////////////////////////////////////
+	// 	   Shared_ptr로 해보고싶었으나 다음과 같은 문제점이 있었음..
+	// 	   1. WorkThread에서 reinterpret_cast로 Socket_Struct* 로는 변환이되나, Shared_ptr로는 변환이안됨..
+	// 	   2. 해당 Socket_Struct를 리스트로써 관리를 하다가, 만약 클라이언트하나가 나가게되면 참조카운트가 0이되며 소멸자를 호출해버림.
+	//////////////////////////////////////////////////////////////////////////
+
+	/// 오브젝트 풀 클래스로 사용하려 했으나 다음과 같은 문제점이 존재.
+	///	1. 소켓과 소켓 구조체가 처음 등록된 이후에, 1:1의 맵핑관계를 가지게 IOCP에 등록을 해놓음.
+	/// 2. 1의 사유로 인해 Queue를 활용한 관리가 오히려 비용이 더 들고 번거로움.
+	// 소켓에 대해 각각 소켓 구조체가 1대 1로 맵핑된 소켓 구조체 풀.
+	tbb::concurrent_hash_map<SOCKET, Socket_Struct*> g_Socket_Struct_Pool;
+	// 클라이언트가 접속하면 해당 클라이언트에 대한 관리.
+	tbb::concurrent_hash_map<SOCKET, Socket_Struct*> g_Connected_Client;
+	// 해당 해시 맵에 접근하기 위한 typedef
+	typedef tbb::concurrent_hash_map<SOCKET, Socket_Struct*> Client_Map;
 
 	/// 서버의 리슨 소켓.
 	std::shared_ptr<SOCKET> g_Listen_Socket;
@@ -41,6 +48,7 @@ private:
 	/// Accept 처리를 위한 쓰레드.
 	std::thread* g_Accept_Client_Thread = nullptr;
 	std::thread* g_Exit_Check_Thread = nullptr;
+
 
 	/// IOCP 핸들 (내부적으로 Queue를 생성한다.)
 	HANDLE	g_IOCP = nullptr;
@@ -57,18 +65,13 @@ public:
 	virtual bool Start();
 	/// 모든 클라이언트에게 메세지를 보냄.
 	virtual bool Send(Packet_Header* Send_Packet);
-	virtual bool Recv(Packet_Header** Recv_Packet, char* MsgBuff);
+	virtual bool Recv(std::vector<Network_Message*>& _Message_Vec);
 	virtual bool End();
-
-protected:
-	void err_display(const char* const cpcMSG);
 
 private:
 	// Thread Function
 	/// 클라이언트의 WorkThread 로직.
 	void WorkThread();
-	/// 클라이언트의 재접속 체크를 위한 로직.
-	void AcceptThread();
 	/// 클라이언트의 종료를 체크하기 위한 로직.
 	void ExitThread();
 	// Thread Create
@@ -77,13 +80,11 @@ private:
 
 	// Socket Function
 	/// 클라이언트 소켓을 리스트에 추가하는 함수.
-	bool AddClientSocket(std::shared_ptr<Socket_Struct> psSocket);
-	/// 리스트에 있는 소켓을 삭제하는 함수.
-	bool RemoveClientSocket(std::shared_ptr<Socket_Struct> psSocket);
-	/// 현재 참조되고있는 Socket이 1개일때만 종료를 호출 할 수 있도록 만든 함수.
-	void Safe_CloseSocket(std::shared_ptr<Socket_Struct> psSocket);
-	/// shared_ptr 형태가아닌 일반 포인터형도 삭제 가능하도록
-	void Safe_CloseSocket(Socket_Struct* psSocket);
+	bool AddClientSocket(Socket_Struct* psSocket);
+	/// 소켓을 재활용하기 위해 Disconnect를 거는 함수.
+	void Reuse_Socket(SOCKET _Socket);
+	/// 클라이언트 소켓리스트에서 해당 소켓을 제외하는 함수.
+	void Delete_in_Socket_List(Socket_Struct* psSocket);
 
 	// Recv , Send Function
 	/// WSAReceive를 걸어두는 작업. ( 한번은 걸어둬야 처리에 대한 응답이 왔을 때 대응 가능 )
@@ -94,5 +95,7 @@ private:
 	/// IOType 에 대한 처리함수들.
 	void IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket);
 	void IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket);
+	void IOFunction_Accept(Overlapped_Struct* psOverlapped);
+	void IOFunction_Disconnect(Overlapped_Struct* psOverlapped);
 };
 

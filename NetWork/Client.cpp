@@ -1,8 +1,5 @@
 #include "Client.h"
 
-#include <assert.h>
-#include <functional>
-
 Client::~Client()
 {
 	/// 클라이언트가 종료될 때 같이 CS도 해제.
@@ -12,20 +9,10 @@ Client::~Client()
 
 bool Client::Start()
 {
-	/// 윈소켓 초기화.
-	WSADATA wsa;
 	/// CS 초기화.
 	InitializeCriticalSection(&g_CCS);
 
-	char Error_Buffer[PACKET_BUFSIZE] = { 0, };
-
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-	{
-		sprintf_s(Error_Buffer, "[TCP 클라이언트] 에러 발생 -- WSAStartup() :");
-		err_display(Error_Buffer);
-
-		return LOGIC_FAIL;
-	}
+	TCHAR Error_Buffer[MSG_BUFSIZE] = { 0, };
 
 	/// 소켓의 구조체를 생성한다.
 	g_Server_Socket = std::make_shared<Socket_Struct>();
@@ -89,13 +76,14 @@ bool Client::Send(Packet_Header* Send_Packet)
 		1,
 		&dwNumberOfBytesSent,
 		0,
-		&psOverlapped->wsaOverlapped,
+		psOverlapped,
 		nullptr);
 
 	if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
 	{
-		char szBuffer[PACKET_BUFSIZE] = { 0, };
-		sprintf_s(szBuffer, "[TCP 클라이언트] 에러 발생 -- WSASend() :");
+		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
+		TCHAR szBuffer[MSG_BUFSIZE] = { 0, };
+		_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASend() :"));
 		err_display(szBuffer);
 
 		Safe_CloseSocket();
@@ -105,38 +93,43 @@ bool Client::Send(Packet_Header* Send_Packet)
 	return TRUE;
 }
 
-bool Client::Recv(Packet_Header** Recv_Packet, char* MsgBuff)
+bool Client::Recv(std::vector<Network_Message*>& _Message_Vec)
 {
 	/// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
 		return FALSE;
 
-	/// 큐에서 데이터를 빼온다.
-	Packet_Header* cpcHeader;
-	Recv_Data_Queue.try_pop(cpcHeader);
-
-	/// 메세지 타입으로 Header 캐스팅.
-	S2C_Message* S2C_Msg = static_cast<S2C_Message*>(cpcHeader);
-
-	switch (cpcHeader->Packet_Type)
+	/// 큐에 저장되어있는 모든 메세지를 담아서 반환.
+	while (!Recv_Data_Queue.empty())
 	{
-		/// break문을 일부로 걸지 않아서 Message와 Data가 같이들어오는 경우도 대비한다.
-	case S2C_Packet_Type_Message:         // 채팅 메세지
-	{
-		/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
-		memcpy_s(MsgBuff, PACKET_BUFSIZE, S2C_Msg->Message_Buffer, PACKET_BUFSIZE);
-	}
-	case S2C_Packet_Type_Data:         // 캐치마인드 데이터.
-	{
-		/// 추후 구현..
-	}
-	break;
+		/// 큐에서 데이터를 빼온다.
+		Network_Message* _Net_Msg = nullptr;
+		Recv_Data_Queue.try_pop(_Net_Msg);
+
+		/// 빼온 데이터를 넣어서 보냄.
+		_Message_Vec.emplace_back(_Net_Msg);
+		/// 메세지 타입으로 Header 캐스팅.
+		//C2S_Message* C2S_Msg = static_cast<C2S_Message*>(cpcHeader);
+
+		//switch (cpcHeader->Packet_Type)
+		//{
+		//case C2S_Packet_Type_Message:         // 채팅 메세지
+		//{
+		//	/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
+		//	memcpy_s(MsgBuff, MSG_BUFSIZE, C2S_Msg->Message_Buffer, MSG_BUFSIZE);
+		//}
+		//case C2S_Packet_Type_Data:
+		//{
+		//	/// 추후 필요시 구현..
+		//}
+		//break;
+		//}
+
+		// 해제.
+		//delete cpcHeader;
 	}
 
-	// 해제.
-	delete cpcHeader;
-
-	/// 큐가 비어있지 않으면 TRUE 반환.
+	/// 큐에 데이터를 다 빼면 TRUE 반환.
 	return TRUE;
 }
 
@@ -163,23 +156,6 @@ bool Client::End()
 	return true;
 }
 
-void Client::err_display(const char* const cpcMSG)
-{
-	LPVOID lpMsgBuf = nullptr;
-
-	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-		nullptr,
-		WSAGetLastError(),
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		reinterpret_cast<TCHAR*>(&lpMsgBuf),
-		0,
-		nullptr);
-
-	printf_s("%s %s", cpcMSG, reinterpret_cast<TCHAR>(lpMsgBuf));
-
-	LocalFree(lpMsgBuf);
-}
-
 void Client::CreateWorkThread()
 {
 	for (int i = 0; i < CLIENT_THREAD_COUNT; i++)
@@ -204,25 +180,30 @@ void Client::WorkThread()
 		Socket_Struct* psSocket = nullptr;
 		Overlapped_Struct* psOverlapped = nullptr;
 
+		/// GetQueuedCompletionStatusEx 를 쓰게 되면서 새로 필요한 부분.
+		OVERLAPPED_ENTRY Entry_Data[64];	// 담겨 올 엔트리의 데이터들. 최대 64개로 선언해둠.
+		ULONG Entry_Count = sizeof(Entry_Data) / sizeof(OVERLAPPED_ENTRY);	// 가져올 데이터의 최대 개수 ( 64개 )
+		ULONG Get_Entry_Count = 0;	// 실제로 몇 개의 엔트리를 가져 왔는지 기록하기 위한 변수.
+
 		// GetQueuedCompletionStatus() - GQCS 라고 부름
 		// WSARead(), WSAWrite() 등의 Overlapped I/O 관련 처리 결과를 받아오는 함수
 		// PostQueuedCompletionStatus() 를 통해서도 GQCS 를 리턴시킬 수 있다.( 일반적으로 쓰레드 종료 처리 )
-		BOOL bSuccessed = GetQueuedCompletionStatus(g_IOCP,												// IOCP 핸들
-			&dwNumberOfBytesTransferred,						    // I/O 에 사용된 데이터의 크기
-			reinterpret_cast<PULONG_PTR>(&psSocket),           // 소켓의 IOCP 등록시 넘겨준 키 값
-																   // ( connect() 이 후, CreateIoCompletionPort() 시 )
-			reinterpret_cast<LPOVERLAPPED*>(&psOverlapped),   // WSARead(), WSAWrite() 등에 사용된 WSAOVERLAPPED
-			INFINITE);										    // 신호가 발생될 때까지 무제한 대기
 
-		// 키가 nullptr 일 경우 쓰레드 종료를 의미
-		if (nullptr == psSocket)
-		{
-			// 다른 WorkerThread() 들의 종료를 위해서
-			PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
-			break;
-		}
+		/// GetQueuedCompletionStatusEx 함수 정리.
+		/// 1. HANDLE hCompletionPort : 어떤 I/O 컴플리션 포트를 대기할 것인지를 결정하는 핸들 값을 전달. ( I/O 컴플리션 큐에 여러 개의 항목이 삽입되어 있을 때, 여러 개의 항목들을 한 번에 가져올 수 있다. )
+		/// 2. LPOVERLAPPED_ENTRY pCompletionPortEntries : 각 항목들은 pCompletionPortEntries 배열을 통해 전달 된다.
+		/// 3. ULONG ulCount : 몇 개의 항목을 pCompletionPortEntries로 복사해 올 것인지를 지정하는 값을 전달하면 된다.
+		/// 4. PULONG pulNumEntriesRemoved : long 값으로 I/O 컴플리션 큐로부터 몇 개의 항목들을 실제로 가지고 왔는지를 받아오게 된다. bAlertable 이 FALSE로 설정되었다면 지정된 시간만큼 I/O 컴플리션 큐로 완료 통지가 삽입될 때까지 대기하게 된다.
+		///										만약 TRUE로 설정되어 있따면 I/O 컴플리션 큐에 어떠한 완료 통지도 존재하지 않는 경우 쓰레드를 Alertable 상태로 전환한다.
+		/// 5. DWORD dwMilliseconds : 기다릴 시간
+		/// 6. BOOL bAlertable : Alertable 상태에 따른 처리는 4 항목을 참조.
 
-		assert(nullptr != psOverlapped);
+		BOOL bSuccessed = GetQueuedCompletionStatusEx(g_IOCP,
+			Entry_Data,
+			Entry_Count,
+			&Get_Entry_Count,
+			INFINITE,
+			0);
 
 		// 오버랩드 결과 체크
 		if (!bSuccessed)
@@ -231,29 +212,55 @@ void Client::WorkThread()
 			{
 				Safe_CloseSocket();
 				printf_s("[TCP 클라이언트] 오버랩드 결과를 체크하는 도중 서버와 연결이 끊겼습니다.\n");
+				Is_Server_Connect_Success = false;
 			}
 
 			delete psOverlapped;
 			continue;
 		}
 
-		// 연결 종료
-		if (0 == dwNumberOfBytesTransferred)
+		/// 실제로 받아온 Entry 데이터에 대하여
+		for (ULONG i = 0; i < Get_Entry_Count; i++)
 		{
-			if (SOCKET_ERROR != shutdown(psOverlapped->m_Socket, SD_BOTH))
+			/// WSARead() / WSAWrite() 등에 사용된 Overlapped 데이터를 가져온다.
+			psOverlapped = reinterpret_cast<Overlapped_Struct*>(Entry_Data[i].lpOverlapped);
+			/// I/O에 사용된 데이터의 크기.
+			dwNumberOfBytesTransferred = Entry_Data[i].dwNumberOfBytesTransferred;
+			/// Key값으로 넘겨줬었던 Socket_Struct 데이터.
+			psSocket = reinterpret_cast<Socket_Struct*>(Entry_Data[i].lpCompletionKey);
+
+			// 키가 nullptr 일 경우 쓰레드 종료를 의미
+			if (!psSocket)
 			{
-				Safe_CloseSocket();
+				// 다른 WorkerThread() 들의 종료를 위해서
+				PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
+				break;
 			}
 
-			delete psOverlapped;
-			continue;
-		}
+			assert(nullptr != psOverlapped);
 
-		// Overlapped I/O 처리
-		switch (psOverlapped->m_IOType)
-		{
-		case Overlapped_Struct::IOType::IOType_Recv: IOFunction_Recv(dwNumberOfBytesTransferred, psOverlapped, psSocket); break; // WSARecv() 의 Overlapped I/O 완료에 대한 처리
-		case Overlapped_Struct::IOType::IOType_Send: IOFunction_Send(dwNumberOfBytesTransferred, psOverlapped, psSocket); break; // WSASend() 의 Overlapped I/O 완료에 대한 처리
+			// 연결 종료
+			if (0 == dwNumberOfBytesTransferred)
+			{
+				if (SOCKET_ERROR != shutdown(psOverlapped->m_Socket, SD_BOTH))
+				{
+					Safe_CloseSocket();
+				}
+
+				delete psOverlapped;
+				continue;
+			}
+
+			/// Overlapped 데이터가 있을 때
+			if (psOverlapped)
+			{
+				// Overlapped I/O 처리
+				switch (psOverlapped->m_IOType)
+				{
+				case Overlapped_Struct::IOType::IOType_Recv: IOFunction_Recv(dwNumberOfBytesTransferred, psOverlapped, psSocket); break; // WSARecv() 의 Overlapped I/O 완료에 대한 처리
+				case Overlapped_Struct::IOType::IOType_Send: IOFunction_Send(dwNumberOfBytesTransferred, psOverlapped, psSocket); break; // WSASend() 의 Overlapped I/O 완료에 대한 처리
+				}
+			}
 		}
 	}
 }
@@ -278,8 +285,9 @@ void Client::ConnectThread()
 
 			if (INVALID_SOCKET == g_Server_Socket->m_Socket)
 			{
-				char szBuffer[PACKET_BUFSIZE] = { 0, };
-				sprintf_s(szBuffer, "[TCP 클라이언트] 에러 발생 -- WSASocket() :");
+				/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
+				TCHAR szBuffer[MSG_BUFSIZE] = { 0, };
+				_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASocket() :"));
 				err_display(szBuffer);
 				break;
 			}
@@ -295,7 +303,8 @@ void Client::ConnectThread()
 			ZeroMemory(&serveraddr, sizeof(serveraddr));
 			serveraddr.sin_family = AF_INET;
 			serveraddr.sin_port = htons(PORT);
-			serveraddr.sin_addr.s_addr = inet_addr(IP.c_str());
+			/// IPv4 기반의 address 가져오기.
+			inet_pton(AF_INET, IP.c_str(), &(serveraddr.sin_addr.s_addr));
 
 			if (SOCKET_ERROR == connect(g_Server_Socket->m_Socket, reinterpret_cast<SOCKADDR*>(&serveraddr), sizeof(serveraddr)))
 			{
@@ -321,6 +330,8 @@ void Client::ConnectThread()
 
 		/// 연결이 되었다는 flag
 		g_Server_Socket->Is_Connected = TRUE;
+		/// 두개로 나눈이유는 Socket에 대한 포인터참조가 일어날 경우가 있을수도 있으니?! 확실한 안전빵으루다가.
+		Is_Server_Connect_Success = true;
 		printf_s("[TCP 클라이언트] 서버와 연결 완료\n");
 
 		/// 소켓을 IOCP 에 키 값과 함께 등록
@@ -350,6 +361,8 @@ void Client::ExitThread()
 			End();
 			break;
 		}
+
+		Sleep(0);
 	}
 }
 
@@ -407,13 +420,14 @@ bool Client::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /
 		1,
 		&dwNumberOfBytesRecvd,
 		&dwFlag,
-		&psOverlapped->wsaOverlapped,
+		psOverlapped,
 		nullptr);
 
 	if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
 	{
-		char szBuffer[PACKET_BUFSIZE] = { 0, };
-		sprintf_s(szBuffer, "[TCP 클라이언트] 에러 발생 -- WSARecv() :");
+		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
+		TCHAR szBuffer[MSG_BUFSIZE] = { 0, };
+		_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSARecv() :"));
 		err_display(szBuffer);
 
 		if (!bRecycleOverlapped)
@@ -462,8 +476,12 @@ void Client::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct
 		Packet_Header* cpcHeader = reinterpret_cast<Packet_Header*>(malloc(usPacketSize));
 		memcpy_s(cpcHeader, usPacketSize, psOverlapped->m_Buffer, usPacketSize);
 
+		Network_Message* Net_Msg = new Network_Message;
+		Net_Msg->Socket = psSocket->m_Socket;
+		Net_Msg->Packet = cpcHeader;
+
 		// 수신한 패킷을 큐에 넣어두고 나중에 처리한다.
-		Recv_Data_Queue.push(cpcHeader);
+		Recv_Data_Queue.push(Net_Msg);
 
 		// 데이터들을 이번에 처리한만큼 당긴다.
 		memcpy_s(psOverlapped->m_Buffer, psOverlapped->m_Data_Size,

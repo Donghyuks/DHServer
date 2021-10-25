@@ -1,19 +1,14 @@
 #pragma once
 
+#include "NetWorkBase.h"
+
 #ifdef NETWORK_EXPORTS
 #define NETWORK_DLL __declspec(dllexport)
 #else
 #define NETWORK_DLL __declspec(dllimport)
 #endif
 
-#include "SharedNetWorkStruct.h"
-#include "SharedPacket.h"
-#include <memory>
-#include <vector>
-#include <thread>
-#include <concurrent_queue.h>
-
-class NETWORK_DLL Client
+class NETWORK_DLL Client : public NetWorkBase
 {
 private:
 	unsigned short			PORT = 9000;
@@ -21,7 +16,7 @@ private:
 	CRITICAL_SECTION		g_CCS;			// 클라이언트 내에서 쓰는 크리티컬 섹션
 
 	/// Recv시 데이터를 저장 해둘 부분.
-	Concurrency::concurrent_queue<Packet_Header*> Recv_Data_Queue;
+	Concurrency::concurrent_queue<Network_Message*> Recv_Data_Queue;
 
 	/// 서버 소켓에대한 포인터.
 	std::shared_ptr<Socket_Struct> g_Server_Socket;
@@ -46,11 +41,8 @@ public:
 public:
 	virtual bool Start();
 	virtual bool Send(Packet_Header* Send_Packet);
-	virtual bool Recv(Packet_Header** Recv_Packet, char* MsgBuff);
+	virtual bool Recv(std::vector<Network_Message*>& _Message_Vec);
 	virtual bool End();
-
-protected:
-	void err_display(const char* const cpcMSG);
 
 private:
 	/// WorkThread를 CLIENT_THREAD_COUNT 개수만큼 생성.

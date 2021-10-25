@@ -16,9 +16,21 @@
     <Filter Include="NetWork\SharedStruct">
       <UniqueIdentifier>{6f596254-21e7-4b1a-9d58-c61e15085437}</UniqueIdentifier>
     </Filter>
+    <Filter Include="NetWork\APIStruct">
+      <UniqueIdentifier>{0659ddbb-194e-4b62-80ca-4781f82ceea2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Pool">
+      <UniqueIdentifier>{17443b92-5035-479e-94d5-00cf53c5886d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="oneapi-tbb-2021.2.0-win">
+      <UniqueIdentifier>{89a988ac-261d-4ccb-82ef-52c12373148e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NetWork\NetWorkBase">
+      <UniqueIdentifier>{ce570add-5cc9-4793-bbc1-e1c299b94f57}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="NetWork.cpp">
+    <ClCompile Include="DHNetWork.cpp">
       <Filter>NetWork</Filter>
     </ClCompile>
     <ClCompile Include="Server.cpp">
@@ -27,9 +39,12 @@
     <ClCompile Include="Client.cpp">
       <Filter>NetWork\Client</Filter>
     </ClCompile>
+    <ClCompile Include="NetWorkBase.cpp">
+      <Filter>NetWork\NetWorkBase</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="NetWork.h">
+    <ClInclude Include="DHNetWork.h">
       <Filter>NetWork</Filter>
     </ClInclude>
     <ClInclude Include="Server.h">
@@ -41,11 +56,158 @@
     <ClInclude Include="NetWorkDefine.h">
       <Filter>NetWork\SharedStruct</Filter>
     </ClInclude>
-    <ClInclude Include="SharedNetWorkStruct.h">
+    <ClInclude Include="SharedDataStruct.h">
       <Filter>NetWork\SharedStruct</Filter>
     </ClInclude>
-    <ClInclude Include="SharedPacket.h">
-      <Filter>NetWork\SharedStruct</Filter>
+    <ClInclude Include="C2NetworkAPIDefine.h">
+      <Filter>NetWork\APIStruct</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryPool.h">
+      <Filter>Pool</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectPool.h">
+      <Filter>Pool</Filter>
+    </ClInclude>
+    <ClInclude Include="NetWorkBase.h">
+      <Filter>NetWork\NetWorkBase</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\blocked_range.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\blocked_range2d.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\blocked_range3d.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\blocked_rangeNd.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\cache_aligned_allocator.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\combinable.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_hash_map.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_lru_cache.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_map.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_priority_queue.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_queue.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_set.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_unordered_map.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_unordered_set.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\concurrent_vector.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\enumerable_thread_specific.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\flow_graph.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\flow_graph_abstractions.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\global_control.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\info.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\memory_pool.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\null_mutex.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\null_rw_mutex.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\parallel_for.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\parallel_for_each.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\parallel_invoke.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\parallel_pipeline.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\parallel_reduce.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\parallel_scan.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\parallel_sort.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\partitioner.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\profiling.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\queuing_mutex.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\queuing_rw_mutex.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\scalable_allocator.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\spin_mutex.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\spin_rw_mutex.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\task.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\task_arena.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\task_group.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\task_scheduler_observer.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\tbb.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\tbb_allocator.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\tbbmalloc_proxy.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\tick_count.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Inc\tbb\version.h">
+      <Filter>oneapi-tbb-2021.2.0-win</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
