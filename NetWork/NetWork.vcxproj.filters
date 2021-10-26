@@ -59,9 +59,6 @@
     <ClInclude Include="SharedDataStruct.h">
       <Filter>NetWork\SharedStruct</Filter>
     </ClInclude>
-    <ClInclude Include="C2NetworkAPIDefine.h">
-      <Filter>NetWork\APIStruct</Filter>
-    </ClInclude>
     <ClInclude Include="MemoryPool.h">
       <Filter>Pool</Filter>
     </ClInclude>
@@ -208,6 +205,9 @@
     </ClInclude>
     <ClInclude Include="..\Inc\tbb\version.h">
       <Filter>oneapi-tbb-2021.2.0-win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\C2NetworkAPI\C2NetworkAPI\C2NetworkAPIDefine.h">
+      <Filter>NetWork\APIStruct</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

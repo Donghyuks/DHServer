@@ -16,6 +16,9 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "mswsock.lib")
 
+/// 1바이트 정렬 시작.
+#pragma pack(push , 1)
+
 struct C2NETWORKAPI_DLL Packet_Header
 {
 	unsigned short Packet_Size;
@@ -26,6 +29,17 @@ struct C2NETWORKAPI_DLL Network_Message
 {
 	SOCKET			Socket;
 	Packet_Header*	Packet;
+};
+
+/// 1바이트 정렬 끝.
+#pragma pack(pop)
+
+/// 네트워크 타입에 대한 정의.
+
+enum class C2NETWORKAPI_DLL NetWork_Type
+{
+	Server,
+	Client
 };
 
 /// Adapter Pattern 을 사용하기위한 InterFace

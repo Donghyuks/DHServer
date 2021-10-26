@@ -9,12 +9,6 @@
 #include "Server.h"
 #include "Client.h"
 
-enum class NETWORK_DLL NetWork_Type
-{
-	Server,
-	Client
-};
-
 class NETWORK_DLL DHNetWork : public C2NetworkAPIBase
 {
 

@@ -158,6 +158,7 @@ copy /Y "$(TargetDir)*.dll" ""$(SolutionDir)..\..\lib"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\C2NetworkAPI\C2NetworkAPI\C2NetworkAPIDefine.h" />
     <ClInclude Include="..\Inc\tbb\blocked_range.h" />
     <ClInclude Include="..\Inc\tbb\blocked_range2d.h" />
     <ClInclude Include="..\Inc\tbb\blocked_range3d.h" />
@@ -204,7 +205,6 @@ copy /Y "$(TargetDir)*.dll" ""$(SolutionDir)..\..\lib"</Command>
     <ClInclude Include="..\Inc\tbb\tbb_allocator.h" />
     <ClInclude Include="..\Inc\tbb\tick_count.h" />
     <ClInclude Include="..\Inc\tbb\version.h" />
-    <ClInclude Include="C2NetworkAPIDefine.h" />
     <ClInclude Include="Client.h" />
     <ClInclude Include="DHNetWork.h" />
     <ClInclude Include="MemoryPool.h" />

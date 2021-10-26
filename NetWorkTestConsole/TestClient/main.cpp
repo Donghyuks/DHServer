@@ -1,8 +1,8 @@
-#include "DHNetWork.h"
+#include "C2NetworkAPI.h"
 
 int main()
 {
-	DHNetWork* my_NetWork = new DHNetWork(NetWork_Type::Client, 9000);
+	C2NetWorkAPI* my_NetWork = new C2NetWorkAPI(NetWork_Name::DHNet, NetWork_Type::Client, 9000);
 
 	my_NetWork->Start();
 
