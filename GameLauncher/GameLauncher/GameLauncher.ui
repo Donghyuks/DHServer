@@ -47,6 +47,12 @@ QLabel
  color:white;
 }
 
+#label_4
+{
+color:red;
+font-size:24px;
+}
+
 QPushButton
 {
  color:white;
@@ -164,11 +170,31 @@ QLineEdit
       <set>Qt::AlignCenter</set>
      </property>
     </widget>
+    <widget class="QLabel" name="label_4">
+     <property name="geometry">
+      <rect>
+       <x>50</x>
+       <y>400</y>
+       <width>481</width>
+       <height>61</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true"/>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+     </property>
+    </widget>
     <zorder>lineEdit</zorder>
     <zorder>pushButton</zorder>
     <zorder>lineEdit_2</zorder>
     <zorder>label_2</zorder>
     <zorder>label_3</zorder>
+    <zorder>label_4</zorder>
    </widget>
    <widget class="QToolButton" name="toolButton">
     <property name="geometry">
