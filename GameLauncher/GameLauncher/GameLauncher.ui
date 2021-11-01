@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>747</width>
-    <height>807</height>
+    <width>660</width>
+    <height>760</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -72,16 +72,21 @@ QLineEdit
  border:none;
  color:#717072;
  border-bottom:1px solid #717072;
+}
+
+#CreateAccount
+{
+
 }</string>
   </property>
   <widget class="QWidget" name="LoginForm">
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>90</x>
-      <y>130</y>
-      <width>571</width>
-      <height>601</height>
+      <x>40</x>
+      <y>40</y>
+      <width>580</width>
+      <height>680</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -94,7 +99,7 @@ QLineEdit
      <property name="geometry">
       <rect>
        <x>30</x>
-       <y>500</y>
+       <y>580</y>
        <width>511</width>
        <height>71</height>
       </rect>
@@ -107,26 +112,32 @@ QLineEdit
      <property name="geometry">
       <rect>
        <x>50</x>
-       <y>189</y>
+       <y>269</y>
        <width>481</width>
        <height>61</height>
       </rect>
      </property>
      <property name="text">
       <string/>
+     </property>
+     <property name="maxLength">
+      <number>20</number>
      </property>
     </widget>
     <widget class="QLineEdit" name="lineEdit_2">
      <property name="geometry">
       <rect>
        <x>50</x>
-       <y>330</y>
+       <y>410</y>
        <width>481</width>
        <height>61</height>
       </rect>
      </property>
      <property name="text">
       <string/>
+     </property>
+     <property name="maxLength">
+      <number>20</number>
      </property>
      <property name="echoMode">
       <enum>QLineEdit::Password</enum>
@@ -136,7 +147,7 @@ QLineEdit
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>130</y>
+       <y>210</y>
        <width>261</width>
        <height>61</height>
       </rect>
@@ -155,7 +166,7 @@ QLineEdit
      <property name="geometry">
       <rect>
        <x>0</x>
-       <y>280</y>
+       <y>360</y>
        <width>271</width>
        <height>61</height>
       </rect>
@@ -174,7 +185,7 @@ QLineEdit
      <property name="geometry">
       <rect>
        <x>50</x>
-       <y>400</y>
+       <y>480</y>
        <width>481</width>
        <height>61</height>
       </rect>
@@ -189,35 +200,50 @@ QLineEdit
       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
      </property>
     </widget>
+    <widget class="QPushButton" name="CreateAccount">
+     <property name="geometry">
+      <rect>
+       <x>260</x>
+       <y>110</y>
+       <width>271</width>
+       <height>71</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>회원가입</string>
+     </property>
+    </widget>
+    <widget class="QToolButton" name="toolButton">
+     <property name="geometry">
+      <rect>
+       <x>30</x>
+       <y>20</y>
+       <width>171</width>
+       <height>161</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="icon">
+      <iconset resource="GameLauncher.qrc">
+       <normaloff>:/GameLauncher/user.png</normaloff>:/GameLauncher/user.png</iconset>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>128</width>
+       <height>128</height>
+      </size>
+     </property>
+    </widget>
     <zorder>lineEdit</zorder>
     <zorder>pushButton</zorder>
     <zorder>lineEdit_2</zorder>
     <zorder>label_2</zorder>
     <zorder>label_3</zorder>
     <zorder>label_4</zorder>
-   </widget>
-   <widget class="QToolButton" name="toolButton">
-    <property name="geometry">
-     <rect>
-      <x>290</x>
-      <y>40</y>
-      <width>171</width>
-      <height>161</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>...</string>
-    </property>
-    <property name="icon">
-     <iconset resource="GameLauncher.qrc">
-      <normaloff>:/GameLauncher/user.png</normaloff>:/GameLauncher/user.png</iconset>
-    </property>
-    <property name="iconSize">
-     <size>
-      <width>128</width>
-      <height>128</height>
-     </size>
-    </property>
+    <zorder>CreateAccount</zorder>
+    <zorder>toolButton</zorder>
    </widget>
   </widget>
  </widget>

@@ -1,10 +1,10 @@
-#include "GameLauncher.h"
+#include "LoginLauncher.h"
 #include <QtWidgets/QApplication>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    GameLauncher w;
+    LoginLauncher w;
     w.show();
     return a.exec();
 }

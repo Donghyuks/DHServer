@@ -2,17 +2,23 @@
 
 #include <QtWidgets/QMainWindow>
 #include <QMessageBox>
+#include <QTextCodec>
 #include <QShortcut>
 #include "ui_GameLauncher.h"
 #include "GamePlayLauncher.h"
+#include "AccountCreate.h"
 #include "C2DB.h"
 
-class GameLauncher : public QMainWindow
+class LoginLauncher : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    GameLauncher(QWidget *parent = Q_NULLPTR);
+    LoginLauncher(QWidget *parent = Q_NULLPTR);
+
+private:
+    AccountCreate* m_MakeAccount = nullptr;       // 로그인 관리
+    GamePlayLauncher* m_PlayLauncher = nullptr;     // 게임 런쳐 관리
 
 private:
     Ui::GameLauncherClass ui;
@@ -23,8 +29,10 @@ private:
 
 public slots:
     void ButtonClicked();
+    void CreateAccountButtonClicked();
     void EnterEvent();
 
 private:
     QString ConvertKR(QByteArray _Text);
+    void ClearText();
 };

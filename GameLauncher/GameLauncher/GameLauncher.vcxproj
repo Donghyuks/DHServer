@@ -60,7 +60,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\Inc;$(SolutionDir)..\C2DB\MariaDB Connector C 64-bit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Inc;$(SolutionDir)..\C2DB\MariaDB Connector C 64-bit\include;.\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)..\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -72,7 +72,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\Inc;$(SolutionDir)..\C2DB\MariaDB Connector C 64-bit\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Inc;$(SolutionDir)..\C2DB\MariaDB Connector C 64-bit\include;.\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)..\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -110,9 +110,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <QtRcc Include="GameLauncher.qrc" />
+    <QtUic Include="AccountCreate.ui" />
     <QtUic Include="GameLauncher.ui" />
-    <QtMoc Include="GameLauncher.h" />
-    <ClCompile Include="GameLauncher.cpp" />
+    <QtMoc Include="LoginLauncher.h" />
+    <ClCompile Include="AccountCreate.cpp" />
+    <ClCompile Include="LoginLauncher.cpp" />
     <ClCompile Include="GamePlayLauncher.cpp" />
     <ClCompile Include="main.cpp" />
     <QtUic Include="GamePlayLauncher.ui" />
@@ -126,6 +128,9 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="AccountCreate.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

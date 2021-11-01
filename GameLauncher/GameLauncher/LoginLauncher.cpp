@@ -1,7 +1,6 @@
-#include "GameLauncher.h"
-#include <QTextCodec>
+#include "LoginLauncher.h"
 
-GameLauncher::GameLauncher(QWidget *parent)
+LoginLauncher::LoginLauncher(QWidget *parent)
     : QMainWindow(parent)
 {
     // DB생성 및 로그인
@@ -10,15 +9,22 @@ GameLauncher::GameLauncher(QWidget *parent)
     codec = QTextCodec::codecForName("EUC-KR");	// 한글코덱
     ui.setupUi(this);
 
+    // 각각 로그인과 회원가입 버튼 연동.
     connect(ui.pushButton, SIGNAL(clicked()), this, SLOT(ButtonClicked()));
-
+    connect(ui.CreateAccount, SIGNAL(clicked()), this, SLOT(CreateAccountButtonClicked()));
     // 엔터키를 통한 로그인가능.
     Enter_Key = new QShortcut(this);
     Enter_Key->setKey(Qt::Key_Return);
     connect(Enter_Key, SIGNAL(activated()), this, SLOT(EnterEvent()));
+
+    /// 사용할 Dialog들 초기화.
+    // 게임 런처
+    m_PlayLauncher = new GamePlayLauncher;
+    // 회원가입
+    m_MakeAccount = new AccountCreate(my_LoginDB);
 }
 
-void GameLauncher::ButtonClicked()
+void LoginLauncher::ButtonClicked()
 {
     /// 입력받은 아이디와 패스워드 가져오기.
     QString _ID = ui.lineEdit->text();
@@ -31,8 +37,7 @@ void GameLauncher::ButtonClicked()
         if (my_LoginDB->ComparePassword(_ID_String, _Password_String))
         {
             this->hide();
-			GamePlayLauncher playLauncher;
-			playLauncher.exec();
+            m_PlayLauncher->exec();
             return;
         }
         else
@@ -46,12 +51,28 @@ void GameLauncher::ButtonClicked()
     }
 }
 
-void GameLauncher::EnterEvent()
+void LoginLauncher::CreateAccountButtonClicked()
+{
+    ClearText();
+    this->hide();
+	m_MakeAccount->exec();
+	this->setVisible(true);
+    return;
+}
+
+void LoginLauncher::EnterEvent()
 {
     ButtonClicked();
 }
 
-QString GameLauncher::ConvertKR(QByteArray _Text)
+QString LoginLauncher::ConvertKR(QByteArray _Text)
 {
     return codec->toUnicode(_Text);
+}
+
+void LoginLauncher::ClearText()
+{
+	ui.lineEdit->setText(ConvertKR(""));
+	ui.lineEdit_2->setText(ConvertKR(""));
+	ui.label_4->setText(ConvertKR(""));
 }
