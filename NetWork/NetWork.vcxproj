@@ -205,20 +205,20 @@ copy /Y "$(TargetDir)*.dll" ""$(SolutionDir)..\..\lib"</Command>
     <ClInclude Include="..\Inc\tbb\tbb_allocator.h" />
     <ClInclude Include="..\Inc\tbb\tick_count.h" />
     <ClInclude Include="..\Inc\tbb\version.h" />
-    <ClInclude Include="Client.h" />
+    <ClInclude Include="DHClient.h" />
     <ClInclude Include="DHNetWork.h" />
+    <ClInclude Include="DHServer.h" />
     <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="NetWorkDefine.h" />
     <ClInclude Include="NetWorkBase.h" />
     <ClInclude Include="ObjectPool.h" />
-    <ClInclude Include="Server.h" />
     <ClInclude Include="SharedDataStruct.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Client.cpp" />
+    <ClCompile Include="DHClient.cpp" />
     <ClCompile Include="DHNetWork.cpp" />
+    <ClCompile Include="DHServer.cpp" />
     <ClCompile Include="NetWorkBase.cpp" />
-    <ClCompile Include="Server.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

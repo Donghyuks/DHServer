@@ -33,25 +33,19 @@
     <ClCompile Include="DHNetWork.cpp">
       <Filter>NetWork</Filter>
     </ClCompile>
-    <ClCompile Include="Server.cpp">
-      <Filter>NetWork\Server</Filter>
-    </ClCompile>
-    <ClCompile Include="Client.cpp">
-      <Filter>NetWork\Client</Filter>
-    </ClCompile>
     <ClCompile Include="NetWorkBase.cpp">
       <Filter>NetWork\NetWorkBase</Filter>
+    </ClCompile>
+    <ClCompile Include="DHServer.cpp">
+      <Filter>NetWork\Server</Filter>
+    </ClCompile>
+    <ClCompile Include="DHClient.cpp">
+      <Filter>NetWork\Client</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DHNetWork.h">
       <Filter>NetWork</Filter>
-    </ClInclude>
-    <ClInclude Include="Server.h">
-      <Filter>NetWork\Server</Filter>
-    </ClInclude>
-    <ClInclude Include="Client.h">
-      <Filter>NetWork\Client</Filter>
     </ClInclude>
     <ClInclude Include="NetWorkDefine.h">
       <Filter>NetWork\SharedStruct</Filter>
@@ -208,6 +202,12 @@
     </ClInclude>
     <ClInclude Include="..\C2NetworkAPI\C2NetworkAPI\C2NetworkAPIDefine.h">
       <Filter>NetWork\APIStruct</Filter>
+    </ClInclude>
+    <ClInclude Include="DHServer.h">
+      <Filter>NetWork\Server</Filter>
+    </ClInclude>
+    <ClInclude Include="DHClient.h">
+      <Filter>NetWork\Client</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

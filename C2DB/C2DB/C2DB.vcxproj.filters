@@ -1,19 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="C2DBClass">
+    <Filter Include="C2DBCoreClass">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="C2DB">
+      <UniqueIdentifier>{b1d126ef-d964-412d-986c-a419b04a14fa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="C2DBCore.cpp">
+      <Filter>C2DBCoreClass</Filter>
+    </ClCompile>
     <ClCompile Include="C2DB.cpp">
-      <Filter>C2DBClass</Filter>
+      <Filter>C2DB</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="C2DBCore.h">
+      <Filter>C2DBCoreClass</Filter>
+    </ClInclude>
     <ClInclude Include="C2DB.h">
-      <Filter>C2DBClass</Filter>
+      <Filter>C2DB</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,18 +1,18 @@
-#include "Server.h"
+#include "DHServer.h"
 
-unsigned short Server::MAX_USER_COUNT = 0;
+unsigned short DHServer::MAX_USER_COUNT = 0;
 
-Server::Server()
+DHServer::DHServer()
 {
 	
 }
 
-Server::~Server()
+DHServer::~DHServer()
 {
 
 }
 
-bool Server::Start()
+bool DHServer::Start()
 {
 	/// 에러를 출력하기위한 버퍼를 생성해 둠. (메모리풀 사용)
 	TCHAR* Error_Buffer = (TCHAR*)m_MemoryPool.GetMemory(MSG_BUFSIZE);
@@ -81,7 +81,7 @@ bool Server::Start()
 	}
 
 	/// 클라이언트의 종료를 체크하기 위한 쓰레드 생성.
-	g_Exit_Check_Thread = new std::thread(std::bind(&Server::ExitThread, this));
+	g_Exit_Check_Thread = new std::thread(std::bind(&DHServer::ExitThread, this));
 
 	printf_s("[TCP 서버] 시작\n");
 
@@ -152,7 +152,7 @@ bool Server::Start()
 	return LOGIC_SUCCESS;
 }
 
-bool Server::Send(Packet_Header* Send_Packet)
+bool DHServer::Send(Packet_Header* Send_Packet)
 {
 	/// 모든 클라이언트에게 메세지를 보냄.
 
@@ -181,7 +181,7 @@ bool Server::Send(Packet_Header* Send_Packet)
 }
 
 
-bool Server::Recv(std::vector<Network_Message*>& _Message_Vec)
+bool DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
 {
 	/// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
@@ -221,7 +221,7 @@ bool Server::Recv(std::vector<Network_Message*>& _Message_Vec)
 	return TRUE;
 }
 
-bool Server::End()
+bool DHServer::End()
 {
 	PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
 
@@ -259,7 +259,7 @@ bool Server::End()
 	return true;
 }
 
-void Server::CreateWorkThread()
+void DHServer::CreateWorkThread()
 {
 	SYSTEM_INFO SystemInfo;
 	GetSystemInfo(&SystemInfo);
@@ -268,7 +268,7 @@ void Server::CreateWorkThread()
 	for (int i = 0; i < iThreadCount; i++)
 	{
 		/// 클라이언트 작업을 하는 WorkThread들 생성.
-		std::thread* Client_Work = new std::thread(std::bind(&Server::WorkThread, this));
+		std::thread* Client_Work = new std::thread(std::bind(&DHServer::WorkThread, this));
 
 		/// 쓰레드 관리자에 넣어주고..
 		g_Work_Thread.push_back(Client_Work);
@@ -277,7 +277,7 @@ void Server::CreateWorkThread()
 	}
 }
 
-void Server::WorkThread()
+void DHServer::WorkThread()
 {
 	assert(nullptr != g_IOCP);
 
@@ -391,7 +391,7 @@ void Server::WorkThread()
 	return;
 }
 
-bool Server::AddClientSocket(Socket_Struct* psSocket)
+bool DHServer::AddClientSocket(Socket_Struct* psSocket)
 {
 	assert(nullptr != psSocket);
 
@@ -424,7 +424,7 @@ bool Server::AddClientSocket(Socket_Struct* psSocket)
 	return TRUE;
 }
 
-void Server::Reuse_Socket(SOCKET _Socket)
+void DHServer::Reuse_Socket(SOCKET _Socket)
 {
 	Client_Map::accessor m_accessor;
 
@@ -447,7 +447,7 @@ void Server::Reuse_Socket(SOCKET _Socket)
 	m_accessor.release();
 }
 
-void Server::Delete_in_Socket_List(Socket_Struct* psSocket)
+void DHServer::Delete_in_Socket_List(Socket_Struct* psSocket)
 {
 	std::string Socket_IP(psSocket->IP);
 	auto Socket_PORT = psSocket->PORT;
@@ -475,7 +475,7 @@ void Server::Delete_in_Socket_List(Socket_Struct* psSocket)
 
 }
 
-void Server::ExitThread()
+void DHServer::ExitThread()
 {
 	while (TRUE)
 	{
@@ -498,7 +498,7 @@ void Server::ExitThread()
 	}
 }
 
-bool Server::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /* = nullptr */)
+bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /* = nullptr */)
 {
 	assert(INVALID_SOCKET != socket);
 
@@ -550,7 +550,7 @@ bool Server::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /
 	return TRUE;
 }
 
-bool Server::SendTargetSocket(SOCKET socket, Packet_Header* psPacket)
+bool DHServer::SendTargetSocket(SOCKET socket, Packet_Header* psPacket)
 {
 	assert(INVALID_SOCKET != socket);
 	assert(nullptr != psPacket);
@@ -608,7 +608,7 @@ bool Server::SendTargetSocket(SOCKET socket, Packet_Header* psPacket)
 	return TRUE;
 }
 
-void Server::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
+void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
 	printf_s("[TCP 서버] [%15s:%5d] 패킷 수신 완료 <- %d 바이트\n", psSocket->IP.c_str(), psSocket->PORT, dwNumberOfBytesTransferred);
 
@@ -687,7 +687,7 @@ void Server::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct
 	}
 }
 
-void Server::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
+void DHServer::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
 	printf_s("[TCP 서버] [%15s:%5d] 패킷 송신 완료 -> %d 바이트\n", psSocket->IP.c_str()
 		, psSocket->PORT, dwNumberOfBytesTransferred);
@@ -695,7 +695,7 @@ void Server::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct
 	delete psOverlapped;
 }
 
-void Server::IOFunction_Accept(Overlapped_Struct* psOverlapped)
+void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 {
 	/// 만약 최대 유저수에 도달했다면 해당 소켓을 끊어줘야 한다.
 	if (g_Connected_Client.size() == MAX_USER_COUNT)
@@ -763,7 +763,7 @@ void Server::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 	}
 }
 
-void Server::IOFunction_Disconnect(Overlapped_Struct* psOverlapped)
+void DHServer::IOFunction_Disconnect(Overlapped_Struct* psOverlapped)
 {
 	/// 에러를 출력하기위한 버퍼를 생성해 둠.
 	TCHAR Error_Buffer[MSG_BUFSIZE] = { 0, };

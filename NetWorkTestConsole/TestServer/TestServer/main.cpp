@@ -1,4 +1,5 @@
 #include "C2NetworkAPI.h"
+#include "SharedDataStruct.h"
 
 int main()
 {

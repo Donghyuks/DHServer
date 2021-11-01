@@ -1,4 +1,5 @@
 #include "C2NetworkAPI.h"
+#include "DHNetWork.h"
 
 C2NetWorkAPI::C2NetWorkAPI(NetWork_Name _Using_NetWork_Name, NetWork_Type _Create_NetWork_Type, unsigned short _PORT,
 	std::string _IP /*= "127.0.0.1"*/, unsigned short MAX_USER_COUNT /*= 100*/)
@@ -18,7 +19,6 @@ C2NetWorkAPI::C2NetWorkAPI(NetWork_Name _Using_NetWork_Name, NetWork_Type _Creat
 	default:
 		break;
 	}
-
 }
 
 C2NetWorkAPI::~C2NetWorkAPI()
@@ -61,5 +61,5 @@ BOOL C2NetWorkAPI::End()
 	Set_NetWork->End();
 	this->~C2NetWorkAPI();
 
-	return LOGIC_SUCCESS;
+	return true;
 }

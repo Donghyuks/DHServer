@@ -1,5 +1,6 @@
-
 #include "DHNetWork.h"
+#include "DHServer.h"
+#include "DHClient.h"
 #include <iostream>
 #include <assert.h>
 
@@ -16,7 +17,7 @@ DHNetWork::DHNetWork(NetWork_Type Create_NetWork_Type, unsigned short _PORT, std
 			std::cout << "이미 Client로 선언된 Class 입니다. - 생성자 에러" << std::endl;
 			return;
 		}
-		m_Server = new Server(_PORT, MAX_USER_COUNT);
+		m_Server = new DHServer(_PORT, MAX_USER_COUNT);
 	}
 	break;
 	case NetWork_Type::Client:
@@ -26,7 +27,7 @@ DHNetWork::DHNetWork(NetWork_Type Create_NetWork_Type, unsigned short _PORT, std
 			std::cout << "이미 Server로 선언된 Class 입니다. - 생성자 에러" << std::endl;
 			return;
 		}
-		m_Client = new Client(_PORT, _IP);
+		m_Client = new DHClient(_PORT, _IP);
 	}
 	break;
 	default:

@@ -2,13 +2,7 @@
 
 #include "NetWorkBase.h"
 
-#ifdef NETWORK_EXPORTS
-#define NETWORK_DLL __declspec(dllexport)
-#else
-#define NETWORK_DLL __declspec(dllimport)
-#endif
-
-class NETWORK_DLL Server : public NetWorkBase
+class DHServer : public NetWorkBase
 {
 	/// 전역 변수 및 전역 함수.
 public:
@@ -55,10 +49,10 @@ private:
 	BOOL	g_Is_Exit = FALSE;
 
 public:
-	Server(unsigned short _PORT, unsigned short _MAX_USER_COUNT) { PORT = _PORT; MAX_USER_COUNT = _MAX_USER_COUNT; }
+	DHServer(unsigned short _PORT, unsigned short _MAX_USER_COUNT) { PORT = _PORT; MAX_USER_COUNT = _MAX_USER_COUNT; }
 	/// 기본생성자로 쓰일 부분..
-	Server();
-	~Server();
+	DHServer();
+	~DHServer();
 
 
 public:

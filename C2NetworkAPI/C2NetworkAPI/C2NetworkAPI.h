@@ -6,7 +6,14 @@
 #define C2NETWORKAPI_DLL __declspec(dllimport)
 #endif
 
-#include "DHNetWork.h"
+#include <WinSock2.h>
+#include <string>
+#include <vector>
+
+struct Packet_Header;
+struct Network_Message;
+class C2NetworkAPIBase;
+enum class NetWork_Type;
 
 enum class C2NETWORKAPI_DLL NetWork_Name
 {
@@ -25,7 +32,7 @@ public:
 
 	/// 기본적인 기능들.. 
 	BOOL	Recv(std::vector<Network_Message*>& _Message_Vec);
-	BOOL	Send(Packet_Header* _Packet, SOCKET _Socket = INVALID_SOCKET);
+	BOOL	Send(Packet_Header* _Packet, SOCKET _Socket = -1);
 	BOOL	Connect(unsigned short _Port, std::string _IP);
 	BOOL	Accept();
 	BOOL	Disconnect(SOCKET _Socket);

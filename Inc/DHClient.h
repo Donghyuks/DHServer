@@ -2,13 +2,7 @@
 
 #include "NetWorkBase.h"
 
-#ifdef NETWORK_EXPORTS
-#define NETWORK_DLL __declspec(dllexport)
-#else
-#define NETWORK_DLL __declspec(dllimport)
-#endif
-
-class NETWORK_DLL Client : public NetWorkBase
+class DHClient : public NetWorkBase
 {
 private:
 	unsigned short			PORT = 9000;
@@ -32,10 +26,10 @@ private:
 	BOOL	g_Is_Exit = FALSE;
 
 public:
-	Client(unsigned short _PORT, std::string _IP) { PORT = _PORT; IP = _IP; }
+	DHClient(unsigned short _PORT, std::string _IP) { PORT = _PORT; IP = _IP; }
 	/// 기본생성자로 쓰일 부분..
-	Client();
-	~Client();
+	DHClient();
+	~DHClient();
 
 
 public:

@@ -35,7 +35,6 @@ struct C2NETWORKAPI_DLL Network_Message
 #pragma pack(pop)
 
 /// 네트워크 타입에 대한 정의.
-
 enum class C2NETWORKAPI_DLL NetWork_Type
 {
 	Server,
@@ -43,7 +42,6 @@ enum class C2NETWORKAPI_DLL NetWork_Type
 };
 
 /// Adapter Pattern 을 사용하기위한 InterFace
-
 class C2NETWORKAPI_DLL C2NetworkAPIBase
 {
 public:

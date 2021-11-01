@@ -158,9 +158,11 @@ copy /Y "$(TargetDir)*.dll" ""$(SolutionDir)..\lib"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="C2DB.cpp" />
+    <ClCompile Include="C2DBCore.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C2DB.h" />
+    <ClInclude Include="C2DBCore.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

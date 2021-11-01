@@ -6,8 +6,10 @@
 #define NETWORK_DLL __declspec(dllimport)
 #endif
 
-#include "Server.h"
-#include "Client.h"
+#include "C2NetworkAPIDefine.h"
+
+class DHClient;
+class DHServer;
 
 class NETWORK_DLL DHNetWork : public C2NetworkAPIBase
 {
@@ -17,8 +19,8 @@ private:
 	NetWork_Type m_NetWork_Type;
 
 	/// 클라이언트와 서버셋팅.
-	Client* m_Client = nullptr;
-	Server* m_Server = nullptr;
+	DHClient* m_Client = nullptr;
+	DHServer* m_Server = nullptr;
 
 public:
 	DHNetWork(NetWork_Type Create_NetWork_Type, unsigned short _PORT, std::string _IP = "127.0.0.1", unsigned short MAX_USER_COUNT = 100);

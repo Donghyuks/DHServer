@@ -1,13 +1,13 @@
-#include "Client.h"
+#include "DHClient.h"
 
-Client::~Client()
+DHClient::~DHClient()
 {
 	/// 클라이언트가 종료될 때 같이 CS도 해제.
 	DeleteCriticalSection(&g_CCS);
 	g_Server_Socket.reset();
 }
 
-bool Client::Start()
+bool DHClient::Start()
 {
 	/// CS 초기화.
 	InitializeCriticalSection(&g_CCS);
@@ -22,7 +22,7 @@ bool Client::Start()
 	assert(nullptr != g_IOCP);
 
 	/// 클라이언트의 종료를 체크하기 위한 쓰레드 생성.
-	g_Exit_Check_Thread = new std::thread(std::bind(&Client::ExitThread, this));
+	g_Exit_Check_Thread = new std::thread(std::bind(&DHClient::ExitThread, this));
 
 	/// CLIENT_THREAD_COUNT 개수만큼 WorkThread를 생성한다.
 	CreateWorkThread();
@@ -30,12 +30,12 @@ bool Client::Start()
 	printf_s("[TCP 클라이언트] 시작\n");
 
 	/// 클라이언트의 연결로직을 실행할 쓰레드 생성. (재접속 시도를 계속 하기위해서)
-	g_Connect_Client_Thread = new std::thread(std::bind(&Client::ConnectThread, this));
+	g_Connect_Client_Thread = new std::thread(std::bind(&DHClient::ConnectThread, this));
 
 	return LOGIC_SUCCESS;
 }
 
-bool Client::Send(Packet_Header* Send_Packet)
+bool DHClient::Send(Packet_Header* Send_Packet)
 {
 	assert(INVALID_SOCKET != g_Server_Socket->m_Socket);
 	assert(nullptr != Send_Packet);
@@ -93,7 +93,7 @@ bool Client::Send(Packet_Header* Send_Packet)
 	return TRUE;
 }
 
-bool Client::Recv(std::vector<Network_Message*>& _Message_Vec)
+bool DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
 {
 	/// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
@@ -133,7 +133,7 @@ bool Client::Recv(std::vector<Network_Message*>& _Message_Vec)
 	return TRUE;
 }
 
-bool Client::End()
+bool DHClient::End()
 {
 	PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
 
@@ -156,12 +156,12 @@ bool Client::End()
 	return true;
 }
 
-void Client::CreateWorkThread()
+void DHClient::CreateWorkThread()
 {
 	for (int i = 0; i < CLIENT_THREAD_COUNT; i++)
 	{
 		/// 클라이언트 작업을 하는 WorkThread들 생성.
-		std::thread* Client_Work = new std::thread(std::bind(&Client::WorkThread, this));
+		std::thread* Client_Work = new std::thread(std::bind(&DHClient::WorkThread, this));
 
 		/// 쓰레드 관리자에 넣어주고..
 		g_Work_Thread.push_back(Client_Work);
@@ -170,7 +170,7 @@ void Client::CreateWorkThread()
 	}
 }
 
-void Client::WorkThread()
+void DHClient::WorkThread()
 {
 	assert(nullptr != g_IOCP);
 
@@ -265,7 +265,7 @@ void Client::WorkThread()
 	}
 }
 
-void Client::ConnectThread()
+void DHClient::ConnectThread()
 {
 	while (!g_Is_Exit)
 	{
@@ -351,7 +351,7 @@ void Client::ConnectThread()
 	}
 }
 
-void Client::ExitThread()
+void DHClient::ExitThread()
 {
 	while (TRUE)
 	{
@@ -366,7 +366,7 @@ void Client::ExitThread()
 	}
 }
 
-void Client::Safe_CloseSocket()
+void DHClient::Safe_CloseSocket()
 {
 	/// 만약 2개 이상의 함수가 CloseSocket 함수를 호출하게 될 경우가 생길 수도 있으니까..
 	EnterCriticalSection(&g_CCS);
@@ -390,7 +390,7 @@ void Client::Safe_CloseSocket()
 	LeaveCriticalSection(&g_CCS);
 }
 
-bool Client::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /* = nullptr */)
+bool DHClient::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /* = nullptr */)
 {
 	assert(INVALID_SOCKET != socket);
 
@@ -440,7 +440,7 @@ bool Client::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /
 	return TRUE;
 }
 
-void Client::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
+void DHClient::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
 	printf_s("[TCP 클라이언트] 패킷 수신 완료 <- %d 바이트\n", dwNumberOfBytesTransferred);
 
@@ -505,7 +505,7 @@ void Client::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct
 	}
 }
 
-void Client::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
+void DHClient::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
 	printf_s("[TCP 클라이언트] 패킷 송신 완료 -> %d 바이트\n", dwNumberOfBytesTransferred);
 

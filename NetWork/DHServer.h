@@ -2,13 +2,7 @@
 
 #include "NetWorkBase.h"
 
-#ifdef NETWORK_EXPORTS
-#define NETWORK_DLL __declspec(dllexport)
-#else
-#define NETWORK_DLL __declspec(dllimport)
-#endif
-
-class NETWORK_DLL DHServer : public NetWorkBase
+class DHServer : public NetWorkBase
 {
 	/// 전역 변수 및 전역 함수.
 public:
