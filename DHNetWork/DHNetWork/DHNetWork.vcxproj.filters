@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="DHNetWork">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="DHNetWork\NetWorkBase">
+      <UniqueIdentifier>{85e1ac9c-6154-4831-91ca-5e4208ad719d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DHNetWork\DHServer">
+      <UniqueIdentifier>{c045db3e-023f-40aa-bd88-3ac9f57c0a7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DHNetWork\DHClient">
+      <UniqueIdentifier>{1c3bf6ca-c8f8-4a6c-bd6f-94f17cbc1410}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DHNetWork\SharedStruct">
+      <UniqueIdentifier>{cefa6e11-adcf-454c-b48f-5be13eb7a8e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Pool">
+      <UniqueIdentifier>{f207c8b5-9c29-4139-b03e-68e292a2d67d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="C2NetAPIShared">
+      <UniqueIdentifier>{76904d77-36c1-4f0d-9883-48e9797d4258}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MemoryPool.h">
+      <Filter>Pool</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectPool.h">
+      <Filter>Pool</Filter>
+    </ClInclude>
+    <ClInclude Include="NetWorkBase.h">
+      <Filter>DHNetWork\NetWorkBase</Filter>
+    </ClInclude>
+    <ClInclude Include="DHServer.h">
+      <Filter>DHNetWork\DHServer</Filter>
+    </ClInclude>
+    <ClInclude Include="DHClient.h">
+      <Filter>DHNetWork\DHClient</Filter>
+    </ClInclude>
+    <ClInclude Include="NetWorkDefine.h">
+      <Filter>DHNetWork\SharedStruct</Filter>
+    </ClInclude>
+    <ClInclude Include="SharedDataStruct.h">
+      <Filter>DHNetWork\SharedStruct</Filter>
+    </ClInclude>
+    <ClInclude Include="DHNetWork.h">
+      <Filter>DHNetWork</Filter>
+    </ClInclude>
+    <ClInclude Include="C2NetworkAPIDefine.h">
+      <Filter>C2NetAPIShared</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="NetWorkBase.cpp">
+      <Filter>DHNetWork\NetWorkBase</Filter>
+    </ClCompile>
+    <ClCompile Include="DHServer.cpp">
+      <Filter>DHNetWork\DHServer</Filter>
+    </ClCompile>
+    <ClCompile Include="DHClient.cpp">
+      <Filter>DHNetWork\DHClient</Filter>
+    </ClCompile>
+    <ClCompile Include="DHNetWork.cpp">
+      <Filter>DHNetWork</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

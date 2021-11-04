@@ -1,17 +1,25 @@
 #include "C2NetworkAPI.h"
 #include "DHNetWork.h"
 
-C2NetWorkAPI::C2NetWorkAPI(NetWork_Name _Using_NetWork_Name, NetWork_Type _Create_NetWork_Type, unsigned short _PORT,
+C2NetWorkAPI::C2NetWorkAPI(C2NetWork_Name _Using_NetWork_Name, C2NetWork_Type _Create_NetWork_Type, unsigned short _PORT,
 	std::string _IP /*= "127.0.0.1"*/, unsigned short MAX_USER_COUNT /*= 100*/)
 {
 	switch (_Using_NetWork_Name)
 	{
-	case NetWork_Name::DHNet:
+	case C2NetWork_Name::DHNet:
 	{
-		Set_NetWork = new DHNetWork(_Create_NetWork_Type, _PORT, _IP, MAX_USER_COUNT);
+		switch (_Create_NetWork_Type)
+		{
+		case C2NetWork_Type::Client:
+			Set_NetWork = new DHNetWork(NetWork_Type::Client, _PORT, _IP, MAX_USER_COUNT);
+			break;
+		case C2NetWork_Type::Server:
+			Set_NetWork = new DHNetWork(NetWork_Type::Server, _PORT, _IP, MAX_USER_COUNT);
+			break;
+		}
 	}
 	break;
-	case NetWork_Name::MGNet:
+	case C2NetWork_Name::MGNet:
 	{
 		// πŒ∞Ê≥› ∫Ÿ¿Ã∏Èµ .
 	}
