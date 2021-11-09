@@ -1,26 +1,9 @@
-#include "C2NetworkAPI.h"
-#include "SharedDataStruct.h"
+
+#include "DummyClient.h"
 
 int main()
 {
-	C2NetWorkAPI* my_NetWork = new C2NetWorkAPI(C2NetWork_Name::DHNet, C2NetWork_Type::Client, 9000, "192.168.0.56");
+	DummyClient Play_Dummy;
 
-	my_NetWork->Start();
-
-	bool One_Flag = true;
-	C2S_Message* _msg = new C2S_Message;
-
-	while (true)
-	{
-		if (GetAsyncKeyState(VK_F2) & 0x8000)
-		{
-			if (One_Flag)
-			{
-				my_NetWork->Send(_msg);
-				One_Flag = false;
-			}
-		}
-
-		Sleep(0);
-	}
+	return 0;
 }

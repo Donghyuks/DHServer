@@ -4,6 +4,7 @@
 #define C2DB_DLL __declspec(dllexport)
 #else
 #define C2DB_DLL __declspec(dllimport)
+#pragma comment(lib,"C2DB.lib")
 #endif
 
 #include <string>

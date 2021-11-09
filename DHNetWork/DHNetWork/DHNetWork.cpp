@@ -27,7 +27,7 @@ DHNetWork::DHNetWork(NetWork_Type Create_NetWork_Type, unsigned short _PORT, std
 			std::cout << "이미 Server로 선언된 Class 입니다. - 생성자 에러" << std::endl;
 			return;
 		}
-		m_Client = new DHClient(_PORT, _IP);
+		m_Client = new DHClient();
 	}
 	break;
 	default:
@@ -68,7 +68,18 @@ BOOL DHNetWork::Send(Packet_Header* _Packet, SOCKET _Socket /*= INVALID_SOCKET*/
 
 BOOL DHNetWork::Connect(unsigned short _Port, std::string _IP)
 {
-	return LOGIC_SUCCESS;
+	switch (m_NetWork_Type)
+	{
+	case NetWork_Type::Server:
+		std::cout << "Server로 생성되었습니다. Connect 호출은 Client에서만 가능합니다." << std::endl;
+		return LOGIC_FAIL;
+	case NetWork_Type::Client:
+		return m_Client->Connect(_Port, _IP);
+	default:
+		break;
+	}
+
+	return LOGIC_FAIL;
 }
 
 BOOL DHNetWork::Accept()

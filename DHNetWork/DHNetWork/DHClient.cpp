@@ -1,5 +1,10 @@
 #include "DHClient.h"
 
+DHClient::DHClient()
+{
+
+}
+
 DHClient::~DHClient()
 {
 	/// 클라이언트가 종료될 때 같이 CS도 해제.
@@ -22,15 +27,12 @@ bool DHClient::Start()
 	assert(nullptr != g_IOCP);
 
 	/// 클라이언트의 종료를 체크하기 위한 쓰레드 생성.
-	g_Exit_Check_Thread = new std::thread(std::bind(&DHClient::ExitThread, this));
+	//g_Exit_Check_Thread = new std::thread(std::bind(&DHClient::ExitThread, this));
 
 	/// CLIENT_THREAD_COUNT 개수만큼 WorkThread를 생성한다.
 	CreateWorkThread();
 
 	printf_s("[TCP 클라이언트] 시작\n");
-
-	/// 클라이언트의 연결로직을 실행할 쓰레드 생성. (재접속 시도를 계속 하기위해서)
-	g_Connect_Client_Thread = new std::thread(std::bind(&DHClient::ConnectThread, this));
 
 	return LOGIC_SUCCESS;
 }
@@ -133,9 +135,28 @@ bool DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
 	return TRUE;
 }
 
+bool DHClient::Connect(unsigned short _Port, std::string _IP)
+{
+	if (g_Connect_Client_Thread != nullptr)
+	{
+		return Is_Server_Connect_Success;
+	}
+
+	/// 해당 포트와 IP 설정.
+	PORT = _Port; IP = _IP;
+	/// 클라이언트의 연결로직을 실행할 쓰레드 생성. (재접속 시도를 계속 하기위해서)
+	g_Connect_Client_Thread = new std::thread(std::bind(&DHClient::ConnectThread, this));
+
+	return false;
+}
+
 bool DHClient::End()
 {
 	PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
+	g_Is_Exit = true;
+
+	//	Connect 쓰레드 종료.
+	g_Connect_Client_Thread->join();
 
 	for (auto k : g_Work_Thread)
 	{
@@ -149,6 +170,7 @@ bool DHClient::End()
 	g_IOCP = nullptr;
 
 	// 윈속 종료
+	Safe_CloseSocket();
 	WSACleanup();
 
 	printf_s("[TCP 클라이언트] 종료\n");
@@ -174,7 +196,7 @@ void DHClient::WorkThread()
 {
 	assert(nullptr != g_IOCP);
 
-	while (TRUE)
+	while (true)
 	{
 		DWORD        dwNumberOfBytesTransferred = 0;
 		Socket_Struct* psSocket = nullptr;
@@ -232,9 +254,10 @@ void DHClient::WorkThread()
 			// 키가 nullptr 일 경우 쓰레드 종료를 의미
 			if (!psSocket)
 			{
-				// 다른 WorkerThread() 들의 종료를 위해서
+				// 다른 WorkerThread() 의 종료를 위해서 PostQueue를 호출해주고 
+				// 현재의 Thread를 종료한다.
 				PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
-				break;
+				return;
 			}
 
 			assert(nullptr != psOverlapped);
@@ -328,12 +351,6 @@ void DHClient::ConnectThread()
 			continue;
 		}
 
-		/// 연결이 되었다는 flag
-		g_Server_Socket->Is_Connected = TRUE;
-		/// 두개로 나눈이유는 Socket에 대한 포인터참조가 일어날 경우가 있을수도 있으니?! 확실한 안전빵으루다가.
-		Is_Server_Connect_Success = true;
-		printf_s("[TCP 클라이언트] 서버와 연결 완료\n");
-
 		/// 소켓을 IOCP 에 키 값과 함께 등록
 		if (CreateIoCompletionPort(reinterpret_cast<HANDLE>(g_Server_Socket->m_Socket), g_IOCP, reinterpret_cast<ULONG_PTR>(g_Server_Socket.get()), 0) != g_IOCP)
 		{
@@ -348,6 +365,13 @@ void DHClient::ConnectThread()
 			Safe_CloseSocket();
 			continue;
 		}
+
+		/// 연결이 되었다는 flag
+		g_Server_Socket->Is_Connected = TRUE;
+		/// 두개로 나눈이유는 Socket에 대한 포인터참조가 일어날 경우가 있을수도 있으니?! 확실한 안전빵으루다가.
+		Is_Server_Connect_Success = true;
+		printf_s("[TCP 클라이언트] 서버와 연결 완료\n");
+
 	}
 }
 
@@ -507,7 +531,7 @@ void DHClient::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 
 void DHClient::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
-	printf_s("[TCP 클라이언트] 패킷 송신 완료 -> %d 바이트\n", dwNumberOfBytesTransferred);
+	printf_s("[TCP 클라이언트][SOCKET %d] 패킷 송신 완료 -> %d 바이트\n", (int)psOverlapped->m_Socket,dwNumberOfBytesTransferred);
 
 	delete psOverlapped;
 }

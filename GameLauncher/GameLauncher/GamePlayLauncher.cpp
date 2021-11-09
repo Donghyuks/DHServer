@@ -44,7 +44,7 @@ GamePlayLauncher::~GamePlayLauncher()
 void GamePlayLauncher::PushGameStartButton()
 {
 	// SVN 업데이트 실행 ( SVN은 디폴트로 다음과 같은 경로에 깔린다 => C:\\Program Files\\TortoiseSVN\\bin )
-	system("cd C:\\Program Files\\TortoiseSVN\\bin && TortoiseProc.exe /command:update /path:D:\\GA2ndFinal_Eater && D:\\GA2ndFinal_Eater\\1_Executable\\TestFile\\Eater.txt");
+	system("cd C:\\Program Files\\TortoiseSVN\\bin && TortoiseProc.exe /command:update /path:D:\\GA2ndFinal_Eater && D:\\GA2ndFinal_Eater\\1_Executable\\TestClient\\TestClient.exe");
 }
 
 QString GamePlayLauncher::ConvertKR(QByteArray _Text)
