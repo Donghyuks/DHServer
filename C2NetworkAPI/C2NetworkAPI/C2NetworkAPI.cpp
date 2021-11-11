@@ -1,32 +1,9 @@
 #include "C2NetworkAPI.h"
 #include "DHNetWork.h"
 
-C2NetWorkAPI::C2NetWorkAPI(C2NetWork_Name _Using_NetWork_Name, C2NetWork_Type _Create_NetWork_Type, unsigned short _PORT,
-	std::string _IP /*= "127.0.0.1"*/, unsigned short MAX_USER_COUNT /*= 100*/)
+C2NetWorkAPI::C2NetWorkAPI()
 {
-	switch (_Using_NetWork_Name)
-	{
-	case C2NetWork_Name::DHNet:
-	{
-		switch (_Create_NetWork_Type)
-		{
-		case C2NetWork_Type::Client:
-			Set_NetWork = new DHNetWork(NetWork_Type::Client, _PORT, _IP, MAX_USER_COUNT);
-			break;
-		case C2NetWork_Type::Server:
-			Set_NetWork = new DHNetWork(NetWork_Type::Server, _PORT, _IP, MAX_USER_COUNT);
-			break;
-		}
-	}
-	break;
-	case C2NetWork_Name::MGNet:
-	{
-		// ¹Î°æ³Ý ºÙÀÌ¸éµÊ.
-	}
-	break;
-	default:
-		break;
-	}
+
 }
 
 C2NetWorkAPI::~C2NetWorkAPI()
@@ -49,19 +26,34 @@ BOOL C2NetWorkAPI::Connect(unsigned short _Port, std::string _IP)
 	return Set_NetWork->Connect(_Port, _IP);
 }
 
-BOOL C2NetWorkAPI::Accept()
+BOOL C2NetWorkAPI::Initialize(C2NetWork_Name _Using_NetWork_Name)
 {
-	return Set_NetWork->Accept();
+	switch (_Using_NetWork_Name)
+	{
+	case C2NetWork_Name::DHNet:
+	{
+		Set_NetWork = new DHNetWork();
+		return Set_NetWork->Initialize();
+	}
+	break;
+	case C2NetWork_Name::MGNet:
+	{
+
+	}
+	break;
+	}
+
+	return false;
+}
+
+BOOL C2NetWorkAPI::Accept(unsigned short _Port, unsigned short _Max_User_Count)
+{
+	return Set_NetWork->Accept(_Port, _Max_User_Count);
 }
 
 BOOL C2NetWorkAPI::Disconnect(SOCKET _Socket)
 {
 	return Set_NetWork->Disconnect(_Socket);
-}
-
-BOOL C2NetWorkAPI::Start()
-{
-	return Set_NetWork->Start();
 }
 
 BOOL C2NetWorkAPI::End()

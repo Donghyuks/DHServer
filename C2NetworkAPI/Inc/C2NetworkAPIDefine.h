@@ -34,22 +34,15 @@ struct C2NETWORKAPI_DLL Network_Message
 /// 1바이트 정렬 끝.
 #pragma pack(pop)
 
-/// 네트워크 타입에 대한 정의.
-enum class C2NETWORKAPI_DLL NetWork_Type
-{
-	Server,
-	Client
-};
-
 /// Adapter Pattern 을 사용하기위한 InterFace
 class C2NETWORKAPI_DLL C2NetworkAPIBase
 {
 public:
+	virtual BOOL	Initialize() abstract;
 	virtual BOOL	Recv(std::vector<Network_Message*>& _Message_Vec) abstract;
 	virtual BOOL	Send(Packet_Header* _Packet, SOCKET _Socket = INVALID_SOCKET) abstract;
 	virtual BOOL	Connect(unsigned short _Port, std::string _IP) abstract;
-	virtual BOOL	Accept() abstract;
+	virtual BOOL	Accept(unsigned short _Port, unsigned short _Max_User_Count) abstract;
 	virtual BOOL	Disconnect(SOCKET _Socket) abstract;
-	virtual BOOL	Start() abstract;
 	virtual BOOL	End() abstract;
 };

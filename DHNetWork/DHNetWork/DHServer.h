@@ -49,18 +49,19 @@ private:
 	BOOL	g_Is_Exit = FALSE;
 
 public:
-	DHServer(unsigned short _PORT, unsigned short _MAX_USER_COUNT) { PORT = _PORT; MAX_USER_COUNT = _MAX_USER_COUNT; }
 	/// 기본생성자로 쓰일 부분..
 	DHServer();
 	~DHServer();
 
 
 public:
-	virtual bool Start();
-	/// 모든 클라이언트에게 메세지를 보냄.
-	virtual bool Send(Packet_Header* Send_Packet);
-	virtual bool Recv(std::vector<Network_Message*>& _Message_Vec);
-	virtual bool End();
+	/// 이 네트워크가 서버로 사용한다는 것을 알려주는 플래그나 다름없다. (Accept는 호스트 고유의 함수)
+	virtual BOOL Accept(unsigned short _Port, unsigned short _Max_User_Count) override;
+	/// SOCKET 이 Invaild 라면 모든 클라이언트에게 메세지 전송. / 그 외에는 해당 소켓에 메세지 전송.
+	virtual BOOL Send(Packet_Header* Send_Packet, SOCKET _Socket = INVALID_SOCKET) override;
+	virtual BOOL Recv(std::vector<Network_Message*>& _Message_Vec) override;
+	virtual BOOL Disconnect(SOCKET _Socket) override;
+	virtual BOOL End() override;
 
 private:
 	// Thread Function
@@ -79,12 +80,16 @@ private:
 	void Reuse_Socket(SOCKET _Socket);
 	/// 클라이언트 소켓리스트에서 해당 소켓을 제외하는 함수.
 	void Delete_in_Socket_List(Socket_Struct* psSocket);
+	/// 해당 소켓이 현재 접속해있는지 검색하는 함수.
+	bool FindSocketOnClient(SOCKET _Target);
 
 	// Recv , Send Function
 	/// WSAReceive를 걸어두는 작업. ( 한번은 걸어둬야 처리에 대한 응답이 왔을 때 대응 가능 )
 	bool Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped = nullptr);
 	/// 해당 소켓에 메세지를 보내는 함수.
 	bool SendTargetSocket(SOCKET socket, Packet_Header* psPacket);
+	/// 모든 소켓에 메세지를 보내는 함수.
+	bool BroadCastMessage(Packet_Header* psPacket);
 
 	/// IOType 에 대한 처리함수들.
 	void IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket);

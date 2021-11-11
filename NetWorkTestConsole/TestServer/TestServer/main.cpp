@@ -5,8 +5,9 @@ int main()
 {
 	std::vector<Network_Message*> Msg_Vec;
 
-	C2NetWorkAPI* my_NetWork = new C2NetWorkAPI(C2NetWork_Name::DHNet, C2NetWork_Type::Server, 9000);
-	my_NetWork->Start();
+	C2NetWorkAPI* my_NetWork = new C2NetWorkAPI();
+	my_NetWork->Initialize(C2NetWork_Name::DHNet);
+	my_NetWork->Accept(9000, 1000);
 
 	while (true)
 	{	

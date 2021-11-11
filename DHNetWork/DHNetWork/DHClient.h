@@ -30,13 +30,11 @@ public:
 	DHClient();
 	~DHClient();
 
-
 public:
-	virtual bool Start();
-	virtual bool Send(Packet_Header* Send_Packet);
-	virtual bool Recv(std::vector<Network_Message*>& _Message_Vec);
-	virtual bool Connect(unsigned short _Port, std::string _IP);
-	virtual bool End();
+	virtual BOOL Send(Packet_Header* Send_Packet, SOCKET _Socket = INVALID_SOCKET) override;
+	virtual BOOL Recv(std::vector<Network_Message*>& _Message_Vec) override;
+	virtual BOOL Connect(unsigned short _Port, std::string _IP) override;
+	virtual BOOL End() override;
 
 private:
 	/// WorkThread를 CLIENT_THREAD_COUNT 개수만큼 생성.

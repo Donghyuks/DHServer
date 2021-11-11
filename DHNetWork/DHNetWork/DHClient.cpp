@@ -2,18 +2,6 @@
 
 DHClient::DHClient()
 {
-
-}
-
-DHClient::~DHClient()
-{
-	/// 클라이언트가 종료될 때 같이 CS도 해제.
-	DeleteCriticalSection(&g_CCS);
-	g_Server_Socket.reset();
-}
-
-bool DHClient::Start()
-{
 	/// CS 초기화.
 	InitializeCriticalSection(&g_CCS);
 
@@ -33,11 +21,16 @@ bool DHClient::Start()
 	CreateWorkThread();
 
 	printf_s("[TCP 클라이언트] 시작\n");
-
-	return LOGIC_SUCCESS;
 }
 
-bool DHClient::Send(Packet_Header* Send_Packet)
+DHClient::~DHClient()
+{
+	/// 클라이언트가 종료될 때 같이 CS도 해제.
+	DeleteCriticalSection(&g_CCS);
+	g_Server_Socket.reset();
+}
+
+BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKET*/)
 {
 	assert(INVALID_SOCKET != g_Server_Socket->m_Socket);
 	assert(nullptr != Send_Packet);
@@ -95,7 +88,7 @@ bool DHClient::Send(Packet_Header* Send_Packet)
 	return TRUE;
 }
 
-bool DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
+BOOL DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
 {
 	/// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
@@ -135,7 +128,7 @@ bool DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
 	return TRUE;
 }
 
-bool DHClient::Connect(unsigned short _Port, std::string _IP)
+BOOL DHClient::Connect(unsigned short _Port, std::string _IP)
 {
 	if (g_Connect_Client_Thread != nullptr)
 	{
@@ -150,7 +143,7 @@ bool DHClient::Connect(unsigned short _Port, std::string _IP)
 	return false;
 }
 
-bool DHClient::End()
+BOOL DHClient::End()
 {
 	PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
 	g_Is_Exit = true;

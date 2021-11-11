@@ -9,11 +9,14 @@ DHServer::DHServer()
 
 DHServer::~DHServer()
 {
-
+	End();
 }
 
-bool DHServer::Start()
+BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 {
+	/// 포트와 최대인원수 설정.
+	PORT = _Port; MAX_USER_COUNT = _Max_User_Count;
+
 	/// 에러를 출력하기위한 버퍼를 생성해 둠. (메모리풀 사용)
 	TCHAR* Error_Buffer = (TCHAR*)m_MemoryPool.GetMemory(MSG_BUFSIZE);
 
@@ -152,36 +155,38 @@ bool DHServer::Start()
 	return LOGIC_SUCCESS;
 }
 
-bool DHServer::Send(Packet_Header* Send_Packet)
+BOOL DHServer::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKET*/)
 {
 	/// 모든 클라이언트에게 메세지를 보냄.
-
+	// 해당 소켓이 존재하지 않거나 패킷이 null 이면 에러.
 	assert(nullptr != Send_Packet);
+	assert(FindSocketOnClient(_Socket));
 
-	// 임계 영역
+	/// 만약 소켓이 설정되지 않았다면 모두에게 메세지를 보냄.
+	if (_Socket == INVALID_SOCKET)
 	{
-		// 전체 클라이언트 소켓에 패킷 송신
-		for (auto it : g_Connected_Client)
-		{
-			// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
-			Client_Map::accessor m_Accessor;
+		BroadCastMessage(Send_Packet);
+	}
+	else
+	{
+		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
+		Client_Map::accessor m_Accessor;
 
-			// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
-			while (!g_Connected_Client.find(m_Accessor, it.first)) {};
+		// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
+		while (!g_Connected_Client.find(m_Accessor, _Socket)) {};
 
-			// 패킷 송신
-			SendTargetSocket(m_Accessor->second->m_Socket, Send_Packet);
+		// 패킷 송신
+		SendTargetSocket(m_Accessor->second->m_Socket, Send_Packet);
 
-			// 해당 자료에 대한 lock 해제.
-			m_Accessor.release();
-		}
+		// 해당 자료에 대한 lock 해제.
+		m_Accessor.release();
 	}
 
 	return true;
 }
 
 
-bool DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
+BOOL DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
 {
 	/// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
@@ -221,8 +226,37 @@ bool DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
 	return TRUE;
 }
 
-bool DHServer::End()
+BOOL DHServer::Disconnect(SOCKET _Socket)
 {
+	// 해당 소켓이 존재하는지 먼저 검사.
+	assert(_Socket != INVALID_SOCKET);
+	assert(FindSocketOnClient(_Socket));
+
+	std::pair<const SOCKET, Socket_Struct*> _itr;
+
+	// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
+	Client_Map::accessor m_Accessor;
+
+	// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
+	while (!g_Connected_Client.find(m_Accessor, _itr.first)) {};
+
+	// 해당 자료에 대한 lock 해제.
+	m_Accessor.release();
+
+	// 클라이언트 종료
+	Delete_in_Socket_List(_itr.second);
+	// 해당 소켓을 종료하고 재사용함.
+	Reuse_Socket(_Socket);
+
+	return LOGIC_SUCCESS;
+}
+
+BOOL DHServer::End()
+{
+	/// 이미 외부에서 초기화를 호출한적이 있다면 그냥 리턴. ( End()호출을 안했을경우 소멸자에서 자동으로 해주도록 하기위함. )
+	if (g_IOCP == nullptr)
+		return LOGIC_FAIL;
+
 	PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
 
 	for (auto k : g_Work_Thread)
@@ -256,7 +290,7 @@ bool DHServer::End()
 
 	printf_s("[TCP 서버] 종료\n");
 
-	return true;
+	return LOGIC_SUCCESS;
 }
 
 void DHServer::CreateWorkThread()
@@ -343,6 +377,7 @@ void DHServer::WorkThread()
 			{
 			case Overlapped_Struct::IOType::IOType_Disconnect:
 			{
+				// Overlapped 는 내부에서 AcceptEx를 걸때 재사용하게된다.
 				IOFunction_Disconnect(psOverlapped);
 				continue;	// Disconnect() 의 Overlapped I/O 완료에 대한 처리
 			}
@@ -606,6 +641,42 @@ bool DHServer::SendTargetSocket(SOCKET socket, Packet_Header* psPacket)
 	}
 
 	return TRUE;
+}
+
+bool DHServer::BroadCastMessage(Packet_Header* psPacket)
+{
+	// 전체 클라이언트 소켓에 패킷 송신
+	for (auto it : g_Connected_Client)
+	{
+		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
+		Client_Map::accessor m_Accessor;
+
+		// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
+		while (!g_Connected_Client.find(m_Accessor, it.first)) {};
+
+		// 패킷 송신
+		SendTargetSocket(m_Accessor->second->m_Socket, psPacket);
+
+		// 해당 자료에 대한 lock 해제.
+		m_Accessor.release();
+	}
+
+	return true;
+}
+
+bool DHServer::FindSocketOnClient(SOCKET _Target)
+{
+	bool _Find_Result = false;
+	// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
+	Client_Map::accessor m_Accessor;
+
+	// 해당하는 소켓이 존재하는지 검사
+	_Find_Result = g_Connected_Client.find(m_Accessor, _Target);
+
+	// 해당 자료에 대한 lock 해제.
+	m_Accessor.release();
+
+	return _Find_Result;
 }
 
 void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)

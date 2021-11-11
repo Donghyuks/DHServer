@@ -4,121 +4,139 @@
 #include <iostream>
 #include <assert.h>
 
-DHNetWork::DHNetWork(NetWork_Type Create_NetWork_Type, unsigned short _PORT, std::string _IP /*= "127.0.0.1"*/, unsigned short MAX_USER_COUNT /*= 0*/)
-{
-	m_NetWork_Type = Create_NetWork_Type;
 
-	switch (Create_NetWork_Type)
-	{
-	case NetWork_Type::Server:
-	{
-		if (m_Client != nullptr)
-		{
-			std::cout << "이미 Client로 선언된 Class 입니다. - 생성자 에러" << std::endl;
-			return;
-		}
-		m_Server = new DHServer(_PORT, MAX_USER_COUNT);
-	}
-	break;
-	case NetWork_Type::Client:
-	{
-		if (m_Server != nullptr)
-		{
-			std::cout << "이미 Server로 선언된 Class 입니다. - 생성자 에러" << std::endl;
-			return;
-		}
-		m_Client = new DHClient();
-	}
-	break;
-	default:
-		break;
-	}
+DHNetWork::DHNetWork()
+{
+
 }
 
-BOOL DHNetWork::Start()
+DHNetWork::~DHNetWork()
 {
-	switch (m_NetWork_Type)
-	{
-	case NetWork_Type::Server:
-		return m_Server->Start();
-	case NetWork_Type::Client:
-		return m_Client->Start();
-	default:
-		break;
-	}
 
-	return LOGIC_FAIL;
+}
+
+BOOL DHNetWork::Initialize()
+{
+	/// 초기화 작업이 필요하면 넣음..
+
+	return LOGIC_SUCCESS;
 }
 
 BOOL DHNetWork::Send(Packet_Header* _Packet, SOCKET _Socket /*= INVALID_SOCKET*/)
 {
-	switch (m_NetWork_Type)
+	if (Current_Type == TYPE_NONSET)
 	{
-	case NetWork_Type::Server:
-		return m_Server->Send(_Packet);
-	break;
-	case NetWork_Type::Client:
-		return m_Client->Send(_Packet);
-	default:
-		break;
+		PrintTypeErrMessage();
+		return LOGIC_FAIL;
 	}
 
-	return LOGIC_FAIL;
+	if (Current_Type == TYPE_DHCLIENT && _Socket != INVALID_SOCKET)
+	{
+		std::cout << "[DHNetWork] Client로 생성된 네트워크에선 연결된 서버소켓에 Send를 합니다.\n[Send 경고] 해당 Socket 정보가 무시됨.\n" << std::endl;
+	}
+
+	m_NetWork->Send(_Packet, _Socket);
+
+	return LOGIC_SUCCESS;
 }
 
 BOOL DHNetWork::Connect(unsigned short _Port, std::string _IP)
 {
-	switch (m_NetWork_Type)
+	/// 이미 서버로 생성된 경우
+	if (Current_Type == TYPE_DHSERVER)
 	{
-	case NetWork_Type::Server:
-		std::cout << "Server로 생성되었습니다. Connect 호출은 Client에서만 가능합니다." << std::endl;
+		PrintTypeErrMessage();
 		return LOGIC_FAIL;
-	case NetWork_Type::Client:
-		return m_Client->Connect(_Port, _IP);
-	default:
-		break;
 	}
 
-	return LOGIC_FAIL;
+	if (Current_Type == TYPE_NONSET)
+	{
+		/// 클라이언트로써 NetWork 생성.
+		Current_Type = TYPE_DHCLIENT;
+		m_NetWork = new DHClient();
+	}
+
+	/// 들어온 포트와 IP에 따라 네트워크 연결.
+	return m_NetWork->Connect(_Port, _IP);
 }
 
-BOOL DHNetWork::Accept()
+BOOL DHNetWork::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 {
-	return LOGIC_SUCCESS;
+	/// 이미 서버로 생성되었거나 Accept를 두번이상 호출하는 경우.
+	if (m_NetWork != nullptr || Current_Type == TYPE_DHCLIENT)
+	{
+		PrintTypeErrMessage();
+		return LOGIC_FAIL;
+	}
+
+	/// 서버로써 NetWork 생성.
+	Current_Type = TYPE_DHSERVER;
+	m_NetWork = new DHServer();
+
+	/// 들어온 포트로써 서버를 열고, Max_User 수를 지정해준다.
+	return m_NetWork->Accept(_Port, _Max_User_Count);
 }
 
 BOOL DHNetWork::Disconnect(SOCKET _Socket)
 {
+	/// 클라이언트로 생성되었거나 아무런 생성이 되어있지 않다면 Disconnect 함수를 사용할 수 없다.
+	if (Current_Type == TYPE_DHCLIENT || Current_Type == TYPE_NONSET)
+	{
+		std::cout << "[DHNetWork] Disconnect 함수는 서버로 생성된 네트워크에서 사용가능합니다.\n" << std::endl;
+		return LOGIC_FAIL;
+	}
+
+	/// 해당하는 소켓의 연결을 끊어줌.
+	m_NetWork->Disconnect(_Socket);
+
 	return LOGIC_SUCCESS;
 }
 
 BOOL DHNetWork::Recv(std::vector<Network_Message*>& _Message_Vec)
 {
-	switch (m_NetWork_Type)
+	/// 현재 네트워크가 설정되어있지 않은경우.
+	if (Current_Type == TYPE_NONSET)
 	{
-	case NetWork_Type::Server:
-		return m_Server->Recv(_Message_Vec);
-	break;
-	case NetWork_Type::Client:
-		return m_Client->Recv(_Message_Vec);
-	default:
-		break;
+		PrintTypeErrMessage();
+		return LOGIC_FAIL;
 	}
+
+	/// 서버 / 클라이언트에 해당하는 함수를 호출해줌.
+	m_NetWork->Recv(_Message_Vec);
 
 	return LOGIC_FAIL;
 }
 
 BOOL DHNetWork::End()
 {
-	switch (m_NetWork_Type)
+	/// 현재 네트워크가 설정되어있지 않은경우.
+	if (Current_Type == TYPE_NONSET)
 	{
-	case NetWork_Type::Server:
-		return m_Server->End();
-	case NetWork_Type::Client:
-		return m_Client->End();
-	default:
-		break;
+		PrintTypeErrMessage();
+		return LOGIC_FAIL;
 	}
 
+	/// 서버 / 클라이언트에 해당하는 함수를 호출해줌.
+	m_NetWork->End();
+
 	return LOGIC_FAIL;
+}
+
+void DHNetWork::PrintTypeErrMessage()
+{
+	if (Current_Type == TYPE_NONSET)
+	{
+		std::cout << "[DHNetWork] Connect()나 Accept()를 호출하지 않았습니다.\n- 네트워크가 연결이 안되어있음 -\n" << std::endl;
+		return;
+	}
+	else if (Current_Type == TYPE_DHSERVER)
+	{
+		std::cout << "[DHNetWork] Accept()에 의해 이미 서버로 생성된 네트워크 입니다.\n- 잘못된 네트워크 함수 호출 -\n" << std::endl;
+		return;
+	}
+	else if (Current_Type == TYPE_DHCLIENT)
+	{
+		std::cout << "[DHNetWork] Connect()에 의해 이미 클라이언트로 생성된 네트워크 입니다.\n- 잘못된 네트워크 함수 호출 -\n" << std::endl;
+		return;
+	}
 }
