@@ -1,5 +1,8 @@
 #pragma once
 
+#define CONNECT_IP "127.0.0.1"
+// #define CONNECT_IP "192.168.0.56"
+
 #include <thread>
 #include <vector>
 #include <atomic>

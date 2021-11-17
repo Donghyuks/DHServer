@@ -1,15 +1,20 @@
 #pragma once
 
-#define TOTAL_OVERLAPPED_COUNT 2000 // 총 오버랩드 개수.
-#define FIRST_ACCEPT_BUFSIZE 1024
-#define STRUCT_BUFSIZE 512
-#define MSG_BUFSIZE 128
-#define IP_SIZE 16
-#define LOGIC_SUCCESS 1
-#define LOGIC_FAIL 0
+/// SETTING COUNT.
+#define TOTAL_OVERLAPPED_COUNT	2000 // 총 오버랩드 개수.
+#define CLIENT_THREAD_COUNT		3
 
-/// 클라이언트의 Work 쓰레드 개수.
-#define CLIENT_THREAD_COUNT 3
+/// BUFSIZE 
+#define PACKET_MSG_BUFIZE		1024
+#define STRUCT_BUFSIZE			512
+#define ERROR_MSG_BUFIZE		128
+
+/// LOGIC DEFINE
+#define LOGIC_SUCCESS			1
+#define LOGIC_FAIL				0
+
+/// STATIC SIZE DEFINE
+#define IP_SIZE					16
 
 /// 공용 API 정의들.
 #include "C2NetworkAPIDefine.h"

@@ -18,7 +18,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	PORT = _Port; MAX_USER_COUNT = _Max_User_Count;
 
 	/// 에러를 출력하기위한 버퍼를 생성해 둠. (메모리풀 사용)
-	TCHAR* Error_Buffer = (TCHAR*)m_MemoryPool.GetMemory(MSG_BUFSIZE);
+	TCHAR* Error_Buffer = (TCHAR*)m_MemoryPool.GetMemory(ERROR_MSG_BUFIZE);
 
 	/// IOCP를 생성한다.
 	g_IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
@@ -40,7 +40,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	if (INVALID_SOCKET == *g_Listen_Socket)
 	{
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		_stprintf_s(Error_Buffer, MSG_BUFSIZE, _T("[TCP 서버] 에러 발생 -- WSASocket() :"));
+		_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- WSASocket() :"));
 		err_display(Error_Buffer);
 
 		WSACleanup();
@@ -59,7 +59,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	if (SOCKET_ERROR == bind(*g_Listen_Socket, reinterpret_cast<SOCKADDR*>(&serveraddr), sizeof(serveraddr)))
 	{
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		_stprintf_s(Error_Buffer, MSG_BUFSIZE, _T("[TCP 서버] 에러 발생 -- bind() :"));
+		_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- bind() :"));
 		err_display(Error_Buffer);
 
 		closesocket(*g_Listen_Socket);
@@ -73,7 +73,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	if (SOCKET_ERROR == listen(*g_Listen_Socket, 5))
 	{
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		_stprintf_s(Error_Buffer, MSG_BUFSIZE, _T("[TCP 서버] 에러 발생 -- listen() :"));
+		_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- listen() :"));
 		err_display(Error_Buffer);
 
 		closesocket(*g_Listen_Socket);
@@ -103,7 +103,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 		if (INVALID_SOCKET == psOverlapped->m_Socket)
 		{
 			/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-			_stprintf_s(Error_Buffer, MSG_BUFSIZE, _T("[TCP 서버] 에러 발생 -- Accept 소켓 생성중 오류 발생 :"));
+			_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- Accept 소켓 생성중 오류 발생 :"));
 			err_display(Error_Buffer);
 
 			WSACleanup();
@@ -124,7 +124,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 		if (ERROR_IO_PENDING != WSAGetLastError())
 		{
 			wprintf(L"Create accept socket failed with error: %u\n", WSAGetLastError());
-			_stprintf_s(Error_Buffer, MSG_BUFSIZE, _T("[TCP 서버] 에러 발생 -- AcceptEx 함수"));
+			_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- AcceptEx 함수"));
 			err_display(Error_Buffer);
 			WSACleanup();
 			return LOGIC_FAIL;
@@ -138,7 +138,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 		if (CreateIoCompletionPort(reinterpret_cast<HANDLE>(psOverlapped->m_Socket), g_IOCP, reinterpret_cast<ULONG_PTR>(psSocket), 0) != g_IOCP)
 		{
 			wprintf(L"CreateIoCompletionPort Function error: %u\n", WSAGetLastError());
-			_stprintf_s(Error_Buffer, MSG_BUFSIZE, _T("[TCP 서버] 에러 발생 -- CreateIoCompletionPort 함수"));
+			_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- CreateIoCompletionPort 함수"));
 			err_display(Error_Buffer);
 			assert(false);
 			// 실패 시에 현재 생성한 소켓은 초기화.
@@ -150,7 +150,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	}
 
 	// 사용한 메모리 반환.
-	m_MemoryPool.ResetMemory(Error_Buffer, MSG_BUFSIZE);
+	m_MemoryPool.ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
 
 	return LOGIC_SUCCESS;
 }
@@ -209,7 +209,7 @@ BOOL DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
 		//case C2S_Packet_Type_Message:         // 채팅 메세지
 		//{
 		//	/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
-		//	memcpy_s(MsgBuff, MSG_BUFSIZE, C2S_Msg->Message_Buffer, MSG_BUFSIZE);
+		//	memcpy_s(MsgBuff, ERROR_MSG_BUFIZE, C2S_Msg->Message_Buffer, ERROR_MSG_BUFIZE);
 		//}
 		//case C2S_Packet_Type_Data:
 		//{
@@ -552,8 +552,8 @@ bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 
 	// WSABUF 셋팅
 	WSABUF wsaBuffer;
-	wsaBuffer.buf = psOverlapped->m_Buffer + psOverlapped->m_Data_Size;
-	wsaBuffer.len = sizeof(psOverlapped->m_Buffer) - psOverlapped->m_Data_Size;
+	wsaBuffer.buf = psOverlapped->m_Buffer;
+	wsaBuffer.len = sizeof(psOverlapped->m_Buffer);
 
 	// WSARecv() 오버랩드 걸기
 	DWORD dwNumberOfBytesRecvd = 0, dwFlag = 0;
@@ -571,7 +571,7 @@ bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 	if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
 	{
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		TCHAR szBuffer[MSG_BUFSIZE] = { 0, };
+		TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
 		_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 서버] 에러 발생 -- WSARecv() :"));
 		err_display(szBuffer);
 
@@ -632,7 +632,7 @@ bool DHServer::SendTargetSocket(SOCKET socket, Packet_Header* psPacket)
 	if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
 	{
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		TCHAR szBuffer[MSG_BUFSIZE] = { 0, };
+		TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
 		_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 서버] 에러 발생 -- WSASend() :"));
 		err_display(szBuffer);
 
@@ -781,7 +781,7 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 	}
 
 	TCHAR szBuffer[STRUCT_BUFSIZE] = { 0, };
-	TCHAR Error_Buffer[MSG_BUFSIZE] = { 0, };
+	TCHAR Error_Buffer[ERROR_MSG_BUFIZE] = { 0, };
 
 	/// Accept
 	SOCKADDR_IN* Localaddr = NULL;
@@ -837,7 +837,7 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 void DHServer::IOFunction_Disconnect(Overlapped_Struct* psOverlapped)
 {
 	/// 에러를 출력하기위한 버퍼를 생성해 둠.
-	TCHAR Error_Buffer[MSG_BUFSIZE] = { 0, };
+	TCHAR Error_Buffer[ERROR_MSG_BUFIZE] = { 0, };
 
 	/// 이미 Disconnect가 들어올때 Overlapped에 소켓이 등록되어있음.
 	psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Accept;

@@ -1,0 +1,58 @@
+// 게임상 World에 존재하는 데이터.
+// <시간>		세계시간 / 현재 웨이브 정보 / 낮과 밤.
+// <오브젝트>	맵에 존재하는 상호가능한 오브젝트에 대한 관리 데이터.
+
+// 데이터 형에 대한 정의
+// 8 bit: byte (int8), ubyte (uint8), bool
+// 16 bit: short (int16), ushort (uint16)
+// 32 bit: int (int32), uint (uint32), float (float32)
+// 64 bit: long (int64), ulong (uint64), double (float64)
+
+namespace Eater.WorldData;
+
+// 사용될 구조체들에 대한 정의
+
+// 현재 낮인지 밤인지?
+enum DayStatus:byte
+{
+	Day = 0,
+	Night
+}
+
+// 현재 몇 스테이지인지?
+enum StageStatus:byte
+{
+	Stage01 = 0,
+	Stage02,
+	Stage03,
+	Stage04
+}
+
+// 상호가능한가?
+enum InteractStatus:byte
+{
+	Interact = 0,
+	Used
+}
+
+// 실제 게임 데이터에 대한 정의
+
+table WorldTimer
+{
+	current_time:double;
+	current_daystate:DayStatus;
+	current_stage:StageStatus;
+}
+
+// 자원 관련 오브젝트.
+table ResourceObject
+{
+	respawn_time:float;
+	name:string;
+	interactstate:InteractStatus;
+}
+
+table WorldObject
+{
+	resourceobject_list:[ResourceObject];
+}

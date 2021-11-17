@@ -51,8 +51,8 @@ DummyClient::DummyClient()
 {
 	// 만들 쓰레드 개수는 컴퓨터 코어 개수 -1 *2 개 만큼 생성한다.
 	// Logger 를 위한 쓰레드 하나를 할당하기 위해서 한개를 덜 할당함.
-	Make_Thread_Count = (GetCoreCount() - 1) * 2;
-	//Make_Thread_Count = 1;
+	//Make_Thread_Count = (GetCoreCount() - 1) * 2;
+	Make_Thread_Count = 1;
 
 	Key_IO = new DHKeyIO;
 	Logger = new DHLogger(_T("DummyClient"));
@@ -164,7 +164,8 @@ void DummyClient::BoundlessSendFunction()
 	my_NetWork = new C2NetWorkAPI();
 	my_NetWork->Initialize(C2NetWork_Name::DHNet);
 	// Connect 까지 대기..
-	while (!my_NetWork->Connect(9000, "192.168.0.56")) {}
+	//while (!my_NetWork->Connect(9000, "192.168.0.56")) {}
+	while (!my_NetWork->Connect(9000, CONNECT_IP)) {}
 
 	while (!End_Flag)
 	{
@@ -210,7 +211,7 @@ void DummyClient::BoundlessEndFunction()
 			my_NetWork->Initialize(C2NetWork_Name::DHNet);
 		}
 		// Connect 까지 대기..
-		if (!my_NetWork->Connect(9000, "192.168.0.56"))
+		if (!my_NetWork->Connect(9000, CONNECT_IP))
 		{
 			continue;
 		}
@@ -253,9 +254,9 @@ void DummyClient::SendEndFunction()
 			my_NetWork->Initialize(C2NetWork_Name::DHNet);
 		}
 		// Connect 까지 대기..
-		bool _Test_Result = my_NetWork->Connect(9000, "192.168.0.56");
+		bool _Test_Result = my_NetWork->Connect(9000, CONNECT_IP);
 
-		if (!my_NetWork->Connect(9000, "192.168.0.56"))
+		if (!my_NetWork->Connect(9000, CONNECT_IP))
 		{
 			continue;
 		}

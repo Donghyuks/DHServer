@@ -86,10 +86,10 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 
 enum C2S_Packet_Type
 {
-	//									TYPE			INDEX
-	C2S_Packet_Type_Message = 0,	/// 메세지 타입		0
-	C2S_Packet_Type_Data,			/// 데이터 타입		1
-	C2S_Packet_Type_MAX,
+	//									TYPE				INDEX
+	C2S_Packet_Type_Message = 0,	/// 메세지 타입			0
+	C2S_Packet_Type_Unit,			/// 유닛 데이터 타입		1
+	C2S_Packet_Type_World,			/// 게임 월드 데이터		2
 };
 
 struct C2S_Message : public Packet_Header
@@ -100,7 +100,7 @@ struct C2S_Message : public Packet_Header
 		Packet_Type = C2S_Packet_Type_Message;
 	}
 
-	char Message_Buffer[MSG_BUFSIZE];	/// 메세지 내용
+	char Message_Buffer[PACKET_MSG_BUFIZE];	/// 메세지 내용
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -124,9 +124,9 @@ struct S2C_Message : public Packet_Header
 	}
 
 	SYSTEMTIME m_Time;
-	char Client_IP[16];
+	char Client_IP[IP_SIZE];
 	unsigned short Client_Port;
-	char Message_Buffer[MSG_BUFSIZE];
+	char Message_Buffer[PACKET_MSG_BUFIZE];
 };
 
 /// 1바이트 정렬 끝.

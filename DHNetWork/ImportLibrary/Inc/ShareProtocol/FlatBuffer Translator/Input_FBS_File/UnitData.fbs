@@ -1,0 +1,56 @@
+// 유닛에 대한 데이터 스키마.
+// <플레이어>	Position / Velocity / Collision 등의 플레이어의 이동 및 상태에 영향을 주는 데이터를 주고받는다.
+// <몬스터>		플레이어와 마찬가지로 현재 몬스터의 이동경로 및 상태에 영향을 주는 데이터를 주고받음.
+
+// 데이터 형에 대한 정의
+// 8 bit: byte (int8), ubyte (uint8), bool
+// 16 bit: short (int16), ushort (uint16)
+// 32 bit: int (int32), uint (uint32), float (float32)
+// 64 bit: long (int64), ulong (uint64), double (float64)
+
+namespace Eater.MoveData;
+
+// 사용될 구조체들에 대한 정의
+
+struct Vec3
+{
+	x:float;
+	y:float;
+	z:float;
+}
+
+enum DroneStatus:byte
+{
+	Moving = 0,
+	Fighting,
+	Dead
+}
+
+enum MonsterStatus:byte
+{
+	Moving = 0,
+	Fighting,
+	Dead
+}
+
+// 실제 게임 데이터에 대한 정의
+
+table Player
+{
+	name:string;
+	pos:Vec3;
+	mov_vector:Vec3;
+	hp:uint;
+	mana:uint;
+	drone_mode:DroneStatus;
+}
+
+table Monster
+{
+	name:string;
+	pos:Vec3;
+	mov_vector:Vec3;
+	mp:uint;
+	mana:uint;
+	monster_ai:MonsterStatus;
+}

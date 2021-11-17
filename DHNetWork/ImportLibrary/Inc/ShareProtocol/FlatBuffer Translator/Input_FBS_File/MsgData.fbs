@@ -1,0 +1,36 @@
+// 게임상 유저간 주고받는 메세지에 대한 데이터.
+// <메세지>		메세지내용 / 메세지 타입(귓속말, 전체 등..)
+// <감정표현>	감정표현 타입
+
+// 데이터 형에 대한 정의
+// 8 bit: byte (int8), ubyte (uint8), bool
+// 16 bit: short (int16), ushort (uint16)
+// 32 bit: int (int32), uint (uint32), float (float32)
+// 64 bit: long (int64), ulong (uint64), double (float64)
+
+namespace Eater.MsgData;
+
+// 사용될 구조체들에 대한 정의
+
+enum EmotionStatus:byte
+{
+	None = 0,
+	Hello,
+	Smile,
+	Angry
+}
+
+enum MssageType:byte
+{
+	All = 0,
+	Whisper
+}
+
+// 실제 게임 데이터에 대한 정의
+
+table UserMessage
+{
+	msg_type:MssageType;
+	msg_data:string;
+	emoticon:EmotionStatus;
+}
