@@ -104,14 +104,14 @@ BOOL DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
 		/// 빼온 데이터를 넣어서 보냄.
 		_Message_Vec.emplace_back(_Net_Msg);
 		/// 메세지 타입으로 Header 캐스팅.
-		//C2S_Message* C2S_Msg = static_cast<C2S_Message*>(cpcHeader);
+		//C2S_Packet* C2S_Msg = static_cast<C2S_Packet*>(cpcHeader);
 
 		//switch (cpcHeader->Packet_Type)
 		//{
 		//case C2S_Packet_Type_Message:         // 채팅 메세지
 		//{
 		//	/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
-		//	memcpy_s(MsgBuff, MSG_BUFSIZE, C2S_Msg->Message_Buffer, MSG_BUFSIZE);
+		//	memcpy_s(MsgBuff, MSG_BUFSIZE, C2S_Msg->Packet_Buffer, MSG_BUFSIZE);
 		//}
 		//case C2S_Packet_Type_Data:
 		//{

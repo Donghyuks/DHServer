@@ -202,14 +202,14 @@ BOOL DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
 		/// 빼온 데이터를 넣어서 보냄.
 		_Message_Vec.emplace_back(_Net_Msg);
 		/// 메세지 타입으로 Header 캐스팅.
-		//C2S_Message* C2S_Msg = static_cast<C2S_Message*>(cpcHeader);
+		//C2S_Packet* C2S_Msg = static_cast<C2S_Packet*>(cpcHeader);
 
 		//switch (cpcHeader->Packet_Type)
 		//{
 		//case C2S_Packet_Type_Message:         // 채팅 메세지
 		//{
 		//	/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
-		//	memcpy_s(MsgBuff, ERROR_MSG_BUFIZE, C2S_Msg->Message_Buffer, ERROR_MSG_BUFIZE);
+		//	memcpy_s(MsgBuff, ERROR_MSG_BUFIZE, C2S_Msg->Packet_Buffer, ERROR_MSG_BUFIZE);
 		//}
 		//case C2S_Packet_Type_Data:
 		//{
@@ -780,7 +780,6 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 		return;
 	}
 
-	TCHAR szBuffer[STRUCT_BUFSIZE] = { 0, };
 	TCHAR Error_Buffer[ERROR_MSG_BUFIZE] = { 0, };
 
 	/// Accept

@@ -9,6 +9,12 @@
 
 	< 변경사항 >
 		1. NetWorkStruct와 Packet 헤더를 하나로 합침.
+
+	2021/11/22 11:24 - CDH
+
+	< 변경사항 >
+		1. FlatBuffer 에 대응하는 메세지 타입 재정의.
+		2. 데이터 구조의 변경.
 */
 
 ///////////////////////////////////////////////////////////////////////////
@@ -23,12 +29,13 @@ struct Socket_Struct
 {
 	Socket_Struct()
 	{
+		// Placement new 를 사용하기 위해 생성자에서 m_Socket 초기화.
 		m_Socket = INVALID_SOCKET;
-		Is_Connected = FALSE;
 	}
 
 	~Socket_Struct()
 	{
+		// 소멸자를 호출하는 시점에서, 소켓이 연결되어있으면 해당 소켓의 해제를 진행.
 		if (INVALID_SOCKET != m_Socket)
 		{
 			shutdown(m_Socket, SD_BOTH);
@@ -36,16 +43,12 @@ struct Socket_Struct
 		}
 	}
 
-	SOCKET m_Socket;		// 연결된 소켓
-
-	/// 서버에서 필요한 데이터.
-	std::string IP;			// 연결 된 곳의 IP
-	unsigned short PORT;	// 연결 된 곳의 PORT
-
-	/// 클라이언트에서 필요한 데이터.
-	bool Is_Connected;		// 연결 여부.
+	SOCKET m_Socket;			// 연결된 소켓
+	std::string IP;				// 연결 된 곳의 IP
+	unsigned short PORT = 0;	// 연결 된 곳의 PORT
 };
 
+// 기본 오버랩드인 WSAOVERLAPPED 를 상속받는 Overlapped Struct
 struct Overlapped_Struct : public WSAOVERLAPPED
 {
 	Overlapped_Struct()
@@ -61,11 +64,11 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 	}
 
 	/// Overlapped I/O의 작업 종류.
+	/// 비동기 처리를 위해서 Type을 지정해두고, 해당 IOCP에 대한 처리를 진행한다.
 	enum class IOType
 	{
-		/// 비동기 처리를 위해서 Type을 지정해두고, 해당 IOCP에 대한 처리를 진행한다.
 		IOType_Accept,
-		/// 소켓의 재사용을 위해 DisconnectEx 를 사용.
+		// 소켓의 재사용을 위해 DisconnectEx 를 사용.
 		IOType_Disconnect,
 		IOType_Recv,
 		IOType_Send
@@ -73,7 +76,7 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 
 	IOType			m_IOType;					// 처리결과를 통보받은 후 작업을 구분하기 위해.
 	SOCKET			m_Socket;					// 오버랩드의 대상이되는 소켓
-	char			m_Buffer[STRUCT_BUFSIZE];	// Send/Recv 버퍼
+	char			m_Buffer[PACKET_BUFIZE];	// Send/Recv 버퍼
 	int				m_Data_Size;				// 처리해야하는 데이터의 양
 };
 
@@ -87,20 +90,23 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 enum C2S_Packet_Type
 {
 	//									TYPE				INDEX
-	C2S_Packet_Type_Message = 0,	/// 메세지 타입			0
-	C2S_Packet_Type_Unit,			/// 유닛 데이터 타입		1
-	C2S_Packet_Type_World,			/// 게임 월드 데이터		2
+	C2S_Packet_Type_None = 0,		/// Default 타입			0
+	C2S_Packet_Type_Message,		/// 메세지 타입			1
+	C2S_Packet_Type_Unit,			/// 유닛 데이터 타입		2
+	C2S_Packet_Type_World,			/// 게임 월드 데이터		3
 };
 
-struct C2S_Message : public Packet_Header
+struct C2S_Packet : public Packet_Header
 {
-	C2S_Message()
+	C2S_Packet()
 	{
+		// 패킷의 총 사이즈는, 현재 C2S_Packet 구조체의 크기이다.
 		Packet_Size = sizeof(*this) - sizeof(Packet_Size);
-		Packet_Type = C2S_Packet_Type_Message;
+		Packet_Type = C2S_Packet_Type_None;
 	}
 
-	char Message_Buffer[PACKET_MSG_BUFIZE];	/// 메세지 내용
+	// 서버로 보낼 데이터를 담을 Packet_Buffer 로 구성되어있음.
+	char Packet_Buffer[PACKET_BUFIZE] = { 0, };
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -109,24 +115,26 @@ struct C2S_Message : public Packet_Header
 
 enum S2C_Packet_Type
 {
-	//									TYPE			INDEX
-	S2C_Packet_Type_Message = 0,	/// 메세지 타입		0
-	S2C_Packet_Type_Data,			/// 데이터 타입		1
-	S2C_Packet_Type_MAX,
+	//									TYPE				INDEX
+	S2C_Packet_Type_None = 0,		/// Default 타입			0
+	S2C_Packet_Type_Message,		/// 메세지 타입			1
+	S2C_Packet_Type_Unit,			/// 유닛 데이터 타입		2
+	S2C_Packet_Type_World,			/// 게임 월드 데이터		3
 };
 
-struct S2C_Message : public Packet_Header
+struct S2C_Packet : public Packet_Header
 {
-	S2C_Message()
+	S2C_Packet()
 	{
+		// 패킷의 총 사이즈는, 현재 C2S_Packet 구조체의 크기이다.
 		Packet_Size = sizeof(*this) - sizeof(Packet_Size);
-		Packet_Type = S2C_Packet_Type_Message;
+		Packet_Type = S2C_Packet_Type_None;
 	}
 
-	SYSTEMTIME m_Time;
-	char Client_IP[IP_SIZE];
-	unsigned short Client_Port;
-	char Message_Buffer[PACKET_MSG_BUFIZE];
+	// 클라이언트 IP/Port 정보 및 데이터를 담을 Packet_Buffer 로 구성되어있음.
+	char			Client_IP[IP_SIZE]					= { 0, };
+	unsigned short	Client_Port							= 0;
+	char			Packet_Buffer[PACKET_BUFIZE]		= { 0, };
 };
 
 /// 1바이트 정렬 끝.
