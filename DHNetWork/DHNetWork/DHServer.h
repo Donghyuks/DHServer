@@ -1,5 +1,13 @@
 #pragma once
 
+/*
+	2021/11/24 12:48 - CDH
+	
+	< 변경사항 >
+		1. Buffer보다 큰 데이터가 들어올 때를 대비하여 처리하는 함수 추가. 
+		
+*/
+
 #include "NetWorkBase.h"
 
 class DHServer : public NetWorkBase
@@ -14,8 +22,12 @@ private:
 	/// Overlapped IO 를 미리 생성하고 쓰기 위함.
 	ObjectPool<Overlapped_Struct>* Available_Overlapped;	// 사용가능한 오버랩드
 
-	/// Recv시 데이터를 저장 해둘 부분.
+	// Recv시 데이터를 저장 해두고 처리하기 위함.
 	tbb::concurrent_queue<Network_Message*> Recv_Data_Queue;
+	// 조각난 데이터가 있다면 작업중인 소켓을 넣어두고 붙여준다.
+	tbb::concurrent_hash_map<SOCKET, Big_Data_Struct*> Merging_Big_Data;
+	// 해당 해시 맵에 접근하기 위한 typedef
+	typedef tbb::concurrent_hash_map<SOCKET, Big_Data_Struct*> Big_Data_Find_Map;
 
 	/// 클라이언트 소켓에대한 포인터.
 	//std::list<std::shared_ptr<Socket_Struct>> g_Client_Socket_List;
@@ -59,37 +71,41 @@ public:
 	virtual BOOL Accept(unsigned short _Port, unsigned short _Max_User_Count) override;
 	/// SOCKET 이 Invaild 라면 모든 클라이언트에게 메세지 전송. / 그 외에는 해당 소켓에 메세지 전송.
 	virtual BOOL Send(Packet_Header* Send_Packet, SOCKET _Socket = INVALID_SOCKET) override;
-	virtual BOOL Recv(std::vector<Network_Message*>& _Message_Vec) override;
+	virtual BOOL Recv(std::vector<Network_Message>& _Message_Vec) override;
 	virtual BOOL Disconnect(SOCKET _Socket) override;
 	virtual BOOL End() override;
 
 private:
-	// Thread Function
-	/// 클라이언트의 WorkThread 로직.
+	/// Thread Function
+	// 클라이언트의 WorkThread 로직.
 	void WorkThread();
-	/// 클라이언트의 종료를 체크하기 위한 로직.
+	// 클라이언트의 종료를 체크하기 위한 로직.
 	void ExitThread();
-	// Thread Create
-	/// WorkThread를 CLIENT_THREAD_COUNT 개수만큼 생성.
+	/// Thread Create
+	// WorkThread를 CLIENT_THREAD_COUNT 개수만큼 생성.
 	void CreateWorkThread();
 
-	// Socket Function
-	/// 클라이언트 소켓을 리스트에 추가하는 함수.
+	/// Socket Function
+	// 클라이언트 소켓을 리스트에 추가하는 함수.
 	bool AddClientSocket(Socket_Struct* psSocket);
-	/// 소켓을 재활용하기 위해 Disconnect를 거는 함수.
+	// 소켓을 재활용하기 위해 Disconnect를 거는 함수.
 	void Reuse_Socket(SOCKET _Socket);
-	/// 클라이언트 소켓리스트에서 해당 소켓을 제외하는 함수.
+	// 클라이언트 소켓리스트에서 해당 소켓을 제외하는 함수.
 	void Delete_in_Socket_List(Socket_Struct* psSocket);
-	/// 해당 소켓이 현재 접속해있는지 검색하는 함수.
+	// 해당 소켓이 현재 접속해있는지 검색하는 함수.
 	bool FindSocketOnClient(SOCKET _Target);
 
-	// Recv , Send Function
-	/// WSAReceive를 걸어두는 작업. ( 한번은 걸어둬야 처리에 대한 응답이 왔을 때 대응 가능 )
+	/// Recv , Send Function
+	// WSAReceive를 걸어두는 작업. ( 한번은 걸어둬야 처리에 대한 응답이 왔을 때 대응 가능 )
 	bool Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped = nullptr);
-	/// 해당 소켓에 메세지를 보내는 함수.
+	// 해당 소켓에 메세지를 보내는 함수.
 	bool SendTargetSocket(SOCKET socket, Packet_Header* psPacket);
-	/// 모든 소켓에 메세지를 보내는 함수.
+	// 모든 소켓에 메세지를 보내는 함수.
 	bool BroadCastMessage(Packet_Header* psPacket);
+	// 큰 데이터가 들어올 때 추가하는 함수.
+	bool BigData_Init(Big_Data_Find_Map::accessor& _Accessor, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct);
+	// 하나의 데이터를 받아오면 수신큐에 넣는 부분.
+	bool Push_RecvData(Packet_Header* _Data_Packet, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct, size_t _Pull_Size);
 
 	/// IOType 에 대한 처리함수들.
 	void IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket);

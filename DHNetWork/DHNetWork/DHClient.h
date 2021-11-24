@@ -32,7 +32,7 @@ public:
 
 public:
 	virtual BOOL Send(Packet_Header* Send_Packet, SOCKET _Socket = INVALID_SOCKET) override;
-	virtual BOOL Recv(std::vector<Network_Message*>& _Message_Vec) override;
+	virtual BOOL Recv(std::vector<Network_Message>& _Message_Vec) override;
 	virtual BOOL Connect(unsigned short _Port, std::string _IP) override;
 	virtual BOOL End() override;
 

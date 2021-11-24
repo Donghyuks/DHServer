@@ -20,7 +20,7 @@
 
 class NetWorkBase;
 
-class NETWORK_DLL DHNetWork : public C2NetworkAPIBase
+class NETWORK_DLL DHNetWork : public DHNetworkAPIBase
 {
 
 private:

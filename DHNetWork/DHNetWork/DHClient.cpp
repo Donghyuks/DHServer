@@ -5,7 +5,7 @@ DHClient::DHClient()
 	/// CS 초기화.
 	InitializeCriticalSection(&g_CCS);
 
-	TCHAR Error_Buffer[MSG_BUFSIZE] = { 0, };
+	TCHAR Error_Buffer[ERROR_MSG_BUFIZE] = { 0, };
 
 	/// 소켓의 구조체를 생성한다.
 	g_Server_Socket = std::make_shared<Socket_Struct>();
@@ -77,7 +77,7 @@ BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 	if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
 	{
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		TCHAR szBuffer[MSG_BUFSIZE] = { 0, };
+		TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
 		_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASend() :"));
 		err_display(szBuffer);
 
@@ -286,7 +286,7 @@ void DHClient::ConnectThread()
 	while (!g_Is_Exit)
 	{
 		/// 만약 이미 서버가 연결이 되어있다면
-		if (g_Server_Socket->Is_Connected == true)
+		if (Is_Server_Connect_Success)
 		{
 			/// 현재 쓰레드는 돌 필요가 없으니까 다른 쓰레드에게 점유권을 넘겨주고 while 루프를 돈다.
 			Sleep(0);
@@ -302,7 +302,7 @@ void DHClient::ConnectThread()
 			if (INVALID_SOCKET == g_Server_Socket->m_Socket)
 			{
 				/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-				TCHAR szBuffer[MSG_BUFSIZE] = { 0, };
+				TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
 				_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASocket() :"));
 				err_display(szBuffer);
 				break;
@@ -359,8 +359,6 @@ void DHClient::ConnectThread()
 			continue;
 		}
 
-		/// 연결이 되었다는 flag
-		g_Server_Socket->Is_Connected = TRUE;
 		/// 두개로 나눈이유는 Socket에 대한 포인터참조가 일어날 경우가 있을수도 있으니?! 확실한 안전빵으루다가.
 		Is_Server_Connect_Success = true;
 		printf_s("[TCP 클라이언트] 서버와 연결 완료\n");
@@ -399,7 +397,6 @@ void DHClient::Safe_CloseSocket()
 		shutdown(g_Server_Socket->m_Socket, SD_BOTH);
 		closesocket(g_Server_Socket->m_Socket);
 		g_Server_Socket->m_Socket = INVALID_SOCKET;
-		g_Server_Socket->Is_Connected = FALSE;
 
 		printf_s("[TCP 클라이언트] 서버와 연결 종료\n");
 	}
@@ -426,8 +423,8 @@ bool DHClient::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 
 	// WSABUF 셋팅
 	WSABUF wsaBuffer;
-	wsaBuffer.buf = psOverlapped->m_Buffer + psOverlapped->m_Data_Size;
-	wsaBuffer.len = sizeof(psOverlapped->m_Buffer) - psOverlapped->m_Data_Size;
+	wsaBuffer.buf = psOverlapped->m_Buffer;
+	wsaBuffer.len = sizeof(psOverlapped->m_Buffer);
 
 	// WSARecv() 오버랩드 걸기
 	DWORD dwNumberOfBytesRecvd = 0, dwFlag = 0;
@@ -443,7 +440,7 @@ bool DHClient::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 	if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
 	{
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		TCHAR szBuffer[MSG_BUFSIZE] = { 0, };
+		TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
 		_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSARecv() :"));
 		err_display(szBuffer);
 

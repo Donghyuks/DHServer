@@ -15,7 +15,24 @@
 	< 변경사항 >
 		1. FlatBuffer 에 대응하는 메세지 타입 재정의.
 		2. 데이터 구조의 변경.
+
+	2021/11/24 10:47 - CDH
+
+	< 변경사항 >
+		1. 큰 데이터를 받을경우에 대한 구조체 선언.
 */
+
+///////////////////////////////////////////////////////////////////////////
+///							Big Data Struct 정의							///
+///////////////////////////////////////////////////////////////////////////
+
+struct Big_Data_Struct
+{
+	// 이때까지 받았던 데이터 사이즈
+	size_t m_sizeof_Recived_Data = 0;
+	// 현재까지 받은 데이터 정보.
+	Packet_Header* m_Recived_Data = nullptr;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 ///					Socket & Overlapped Struct 정의						///
@@ -74,10 +91,10 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 		IOType_Send
 	};
 
-	IOType			m_IOType;					// 처리결과를 통보받은 후 작업을 구분하기 위해.
-	SOCKET			m_Socket;					// 오버랩드의 대상이되는 소켓
-	char			m_Buffer[PACKET_BUFIZE];	// Send/Recv 버퍼
-	int				m_Data_Size;				// 처리해야하는 데이터의 양
+	IOType			m_IOType;						// 처리결과를 통보받은 후 작업을 구분하기 위해.
+	SOCKET			m_Socket;						// 오버랩드의 대상이되는 소켓
+	char			m_Buffer[OVERLAPPED_BUFIZE];	// Send/Recv 버퍼
+	size_t			m_Data_Size;					// 처리해야하는 데이터의 양
 };
 
 //////////////////////////////////////////////////////////////////////////

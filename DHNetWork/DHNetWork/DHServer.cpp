@@ -186,7 +186,7 @@ BOOL DHServer::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 }
 
 
-BOOL DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
+BOOL DHServer::Recv(std::vector<Network_Message>& _Message_Vec)
 {
 	/// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
@@ -200,7 +200,7 @@ BOOL DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
 		Recv_Data_Queue.try_pop(_Net_Msg);
 
 		/// 빼온 데이터를 넣어서 보냄.
-		_Message_Vec.emplace_back(_Net_Msg);
+		_Message_Vec.push_back(*_Net_Msg);
 		/// 메세지 타입으로 Header 캐스팅.
 		//C2S_Packet* C2S_Msg = static_cast<C2S_Packet*>(cpcHeader);
 
@@ -219,7 +219,7 @@ BOOL DHServer::Recv(std::vector<Network_Message*>& _Message_Vec)
 		//}
 
 		// 해제.
-		//delete cpcHeader;
+		delete _Net_Msg;
 	}
 
 	/// 큐에 데이터를 다 빼면 TRUE 반환.
@@ -464,7 +464,7 @@ void DHServer::Reuse_Socket(SOCKET _Socket)
 	Client_Map::accessor m_accessor;
 
 	// 해당 소켓번호에 대응하는 소켓 구조체를 가져온다.
-	while (!g_Socket_Struct_Pool.find(m_accessor, _Socket)) {};
+	g_Socket_Struct_Pool.find(m_accessor, _Socket);
 
 	// 소멸자를 호출하여 초기화.
 	m_accessor->second = new (m_accessor->second) Socket_Struct;
@@ -664,6 +664,105 @@ bool DHServer::BroadCastMessage(Packet_Header* psPacket)
 	return true;
 }
 
+bool DHServer::BigData_Init(Big_Data_Find_Map::accessor& _Accessor, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct)
+{
+	size_t Merge_Data_Size = 0;
+	Big_Data_Struct* _Recived_Data = _Accessor->second;
+
+	// 만약 이번에 모든 데이터를 다 받은 경우
+	if (_Overlapped_Struct->m_Data_Size > _Recived_Data->m_Recived_Data->Packet_Size)
+	{
+		// 이번에 합쳐야할 데이터의 크기
+		Merge_Data_Size = _Recived_Data->m_Recived_Data->Packet_Size - _Recived_Data->m_sizeof_Recived_Data;
+
+		// 만약 realloc 함수가 실패한다면 할당을 하지 못했으므로 에러를 출력한다.
+		if (NULL == (_Recived_Data->m_Recived_Data = (Packet_Header*)realloc(_Recived_Data->m_Recived_Data, _Recived_Data->m_sizeof_Recived_Data + Merge_Data_Size)))
+		{
+			printf_s("[TCP 서버] realloc 실패\n");
+			assert(false);
+			return false;
+		}
+
+		// 데이터 합치기.
+		memcpy_s(
+			_Recived_Data->m_Recived_Data + _Recived_Data->m_sizeof_Recived_Data,		// 현재 저장되어있는 값 뒤로부터
+			Merge_Data_Size,															// 새로 들어온 데이터 만큼 데이터를 붙인다.
+			_Overlapped_Struct->m_Buffer, Merge_Data_Size								// 버퍼에서 해당크기만큼 복사해옴.
+		);
+
+		// 완성된 데이터를 RecvQueue에 넣어둔다.
+		bool Push_Result = Push_RecvData(_Recived_Data->m_Recived_Data, _Socket_Struct, _Overlapped_Struct, Merge_Data_Size);
+
+		// 처리된 패킷은 따로 recv 버퍼에서 포인터를 관리하게된다.
+		_Recived_Data->m_Recived_Data = nullptr;
+		// 모두 처리된 데이터는 리스트에서 지워준다.
+		Merging_Big_Data.erase(_Accessor);
+
+		return Push_Result;
+	}
+	// 이번에 모든 데이터를 받지 못한 경우 데이터를 붙이고 이어서 계속 Recv를 한다.
+	else
+	{
+		// 이번에 합쳐야할 데이터의 크기 는 받은 데이터 크기와 같다.
+		Merge_Data_Size = _Overlapped_Struct->m_Data_Size;
+
+		// 만약 realloc 함수가 실패한다면 할당을 하지 못했으므로 에러를 출력한다.
+		if (NULL == (_Recived_Data->m_Recived_Data = (Packet_Header*)realloc(_Recived_Data->m_Recived_Data, _Recived_Data->m_sizeof_Recived_Data + Merge_Data_Size)))
+		{
+			printf_s("[TCP 서버] realloc 실패\n");
+			assert(false);
+			return false;
+		}
+
+		// 데이터 합치기.
+		memcpy_s(
+			_Recived_Data->m_Recived_Data + _Recived_Data->m_sizeof_Recived_Data,		// 현재 저장되어있는 값 뒤로부터
+			Merge_Data_Size,															// 새로 들어온 데이터 만큼 데이터를 붙인다.
+			_Overlapped_Struct->m_Buffer, Merge_Data_Size								// 버퍼에서 해당크기만큼 복사해옴.
+		);
+
+		_Recived_Data->m_sizeof_Recived_Data += Merge_Data_Size;
+
+		_Overlapped_Struct->m_Data_Size = 0;
+		
+		return true;
+	}
+}
+
+bool DHServer::Push_RecvData(Packet_Header* _Data_Packet, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct, size_t _Pull_Size)
+{
+	// 패킷에 아무런 설정을 하지않고 보냈다면 잘못 된 패킷이다.
+	if (C2S_Packet_Type_None == _Data_Packet->Packet_Type)
+	{
+		// 받은 데이터 삭제.
+		delete _Data_Packet;
+		_Data_Packet = nullptr;
+		// 클라이언트 종료
+		SOCKET _Socket_Data = _Socket_Struct->m_Socket;
+		Delete_in_Socket_List(_Socket_Struct);
+		Reuse_Socket(_Socket_Data);
+		Available_Overlapped->ResetObject(_Overlapped_Struct);
+		return false;
+	}
+
+	// 수신한 데이터를 소켓과 함께 저장해준다.
+	Network_Message* _Net_Msg = new Network_Message;
+	_Net_Msg->Socket = _Socket_Struct->m_Socket;
+	_Net_Msg->Packet = _Data_Packet;
+
+	// 수신한 패킷을 큐에 넣어두고 나중에 처리한다.
+	Recv_Data_Queue.push(_Net_Msg);
+
+	// 데이터들을 이번에 처리한만큼 당긴다.
+	memcpy_s(_Overlapped_Struct->m_Buffer, _Overlapped_Struct->m_Data_Size,
+		_Overlapped_Struct->m_Buffer + _Pull_Size, _Overlapped_Struct->m_Data_Size - _Pull_Size);
+
+	// 처리한 패킷 크기만큼 처리할량 감소
+	_Overlapped_Struct->m_Data_Size -= _Pull_Size;
+
+	return true;
+}
+
 bool DHServer::FindSocketOnClient(SOCKET _Target)
 {
 	bool _Find_Result = false;
@@ -692,21 +791,52 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 	// 처리할 데이터가 있으면 처리
 	while (psOverlapped->m_Data_Size > 0)
 	{
-		// header 크기는 2 바이트( 고정 )
-		static const unsigned short cusHeaderSize = 2;
+		// 패킷 헤더 내에 있는 패킷 사이즈 확인.
+		size_t Packet_Size = *reinterpret_cast<size_t*>(psOverlapped->m_Buffer);
+
+		// 만약 패킷의 사이즈가 Overlapped의 버퍼보다 큰 경우 따로 모아서 합친 후 처리한다.
+		if (Header_Ptr->Packet_Size > OVERLAPPED_BUFIZE)
+		{
+			Big_Data_Struct* _Big_Data = new Big_Data_Struct;
+			_Big_Data->m_Recived_Data = Header_Ptr;
+			Merging_Big_Data.insert({ psSocket->m_Socket , })
+		}
+
+		// 만약 큰 데이터를 처리할 일이 있다면..
+		if (!Merging_Big_Data.empty())
+		{
+			{
+				Big_Data_Find_Map::accessor m_Accessor;
+
+				// 합치는 작업중인 소켓이라면
+				if (Merging_Big_Data.find(m_Accessor, psSocket->m_Socket))
+				{
+					if (BigData_Init(m_Accessor, psSocket, psOverlapped) == false)
+					{
+						return;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				m_Accessor.release();
+			}
+		}
 
 		// header 를 다 받지 못했다. 이어서 recv()
-		if (cusHeaderSize > psOverlapped->m_Data_Size)
+		if (PACKET_HEADER_SIZE > psOverlapped->m_Data_Size)
 		{
 			break;
 		}
 
 		// body 의 크기는 N 바이트( 가변 ), 패킷에 담겨있음
-		unsigned short usBodySize = *reinterpret_cast<unsigned short*>(psOverlapped->m_Buffer);
-		unsigned short usPacketSize = cusHeaderSize + usBodySize;
+		size_t Recive_Packet_Size = PACKET_HEADER_SIZE + *reinterpret_cast<size_t*>(Header_Ptr->Packet_Size);
+		
 
 		// 하나의 패킷을 다 받지 못했다. 이어서 recv()
-		if (usPacketSize > psOverlapped->m_Data_Size)
+		if (Recive_Packet_Size > psOverlapped->m_Data_Size)
 		{
 			break;
 		}
@@ -718,31 +848,8 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 		Packet_Header* cpcHeader = reinterpret_cast<Packet_Header*>(malloc(usPacketSize));
 		memcpy_s(cpcHeader, usPacketSize, psOverlapped->m_Buffer, usPacketSize);
 
-		// 잘못된 패킷
-		if (C2S_Packet_Type_MAX <= cpcHeader->Packet_Type)
-		{
-			// 클라이언트 종료
-			SOCKET _Socket_Data = psSocket->m_Socket;
-			Delete_in_Socket_List(psSocket);
-			Reuse_Socket(_Socket_Data);
-			Available_Overlapped->ResetObject(psOverlapped);
-			return;
-		}
+		if (Push_RecvData(cpcHeader, psSocket, psOverlapped,) == false) { return; }
 
-		// 수신한 데이터를 소켓과 함께 저장해준다.
-		Network_Message* _Net_Msg = new Network_Message;
-		_Net_Msg->Socket = psSocket->m_Socket;
-		_Net_Msg->Packet = cpcHeader;
-
-		// 수신한 패킷을 큐에 넣어두고 나중에 처리한다.
-		Recv_Data_Queue.push(_Net_Msg);
-
-		// 데이터들을 이번에 처리한만큼 당긴다.
-		memcpy_s(psOverlapped->m_Buffer, psOverlapped->m_Data_Size,
-			psOverlapped->m_Buffer + usPacketSize, psOverlapped->m_Data_Size - usPacketSize);
-
-		// 처리한 패킷 크기만큼 처리할량 감소
-		psOverlapped->m_Data_Size -= usPacketSize;
 	}
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
