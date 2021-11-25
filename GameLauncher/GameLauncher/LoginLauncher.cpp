@@ -5,7 +5,7 @@ LoginLauncher::LoginLauncher(QWidget *parent)
 {
     // DB생성 및 로그인
     my_LoginDB = new C2DB();
-    my_LoginDB->ConnectDB("192.168.0.56", "CDH", "ehxk2Rnfwoa!", "LOGIN", 3306);
+    my_LoginDB->ConnectDB("221.163.91.100", "CDH", "ehxk2Rnfwoa!", "LOGIN", 3306);
     codec = QTextCodec::codecForName("EUC-KR");	// 한글코덱
     ui.setupUi(this);
 

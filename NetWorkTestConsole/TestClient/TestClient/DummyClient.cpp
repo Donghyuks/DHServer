@@ -165,7 +165,7 @@ void DummyClient::BoundlessSendFunction()
 	my_NetWork->Initialize(C2NetWork_Name::DHNet);
 	// Connect 까지 대기..
 	//while (!my_NetWork->Connect(9000, "192.168.0.56")) {}
-	while (!my_NetWork->Connect(9000, CONNECT_IP)) {}
+	while (!my_NetWork->Connect(729, CONNECT_IP)) {}
 
 	while (!End_Flag)
 	{
