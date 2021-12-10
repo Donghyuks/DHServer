@@ -17,7 +17,7 @@
 #define IP_SIZE					16
 
 /// 공용 API 정의들.
-#include "C2NetworkAPIDefine.h"
+#include "DHNetWorkAPIDefine.h"
 
 /// 공용 헤더
 // 기타

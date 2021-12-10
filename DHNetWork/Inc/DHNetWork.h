@@ -13,14 +13,14 @@
 
 #endif
 
-#include "C2NetworkAPIDefine.h"
+#include "DHNetWorkAPIDefine.h"
 #define TYPE_NONSET		0b0000
 #define TYPE_DHSERVER	0b0001
 #define TYPE_DHCLIENT	0b0010
 
 class NetWorkBase;
 
-class NETWORK_DLL DHNetWork : public C2NetworkAPIBase
+class NETWORK_DLL DHNetWork : public DHNetworkAPIBase
 {
 
 private:
@@ -42,7 +42,7 @@ public:
 	/// 클라일 경우 Connect 호출
 	virtual BOOL	Connect(unsigned short _Port, std::string _IP) override;
 	/// 공통 Function
-	virtual BOOL	Recv(std::vector<Network_Message*>& _Message_Vec) override;
+	virtual BOOL	Recv(std::vector<Network_Message>& _Message_Vec) override;
 	virtual BOOL	Send(Packet_Header* _Packet, SOCKET _Socket = INVALID_SOCKET) override;
 	virtual BOOL	Disconnect(SOCKET _Socket) override;
 	virtual BOOL	End() override;

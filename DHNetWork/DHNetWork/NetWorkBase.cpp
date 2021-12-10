@@ -9,7 +9,7 @@ NetWorkBase::NetWorkBase()
 	/// 윈소켓 초기화.
 	WSADATA wsa;
 
-	TCHAR Error_Buffer[MSG_BUFSIZE] = { 0, };
+	TCHAR Error_Buffer[ERROR_MSG_BUFIZE] = { 0, };
 
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 	{
@@ -59,7 +59,7 @@ void NetWorkBase::err_display(const TCHAR* const cpcMSG)
 
 void NetWorkBase::Disconnect_EX(SOCKET _Disconnect_Socket, LPOVERLAPPED _Overlapped, DWORD _dwflags, DWORD _dwReserved)
 {
-	TCHAR Error_Buffer[MSG_BUFSIZE] = { 0, };
+	TCHAR Error_Buffer[ERROR_MSG_BUFIZE] = { 0, };
 
 	lpfnDisconnectEx(_Disconnect_Socket, _Overlapped, _dwflags, _dwReserved);
 	int Err = WSAGetLastError();

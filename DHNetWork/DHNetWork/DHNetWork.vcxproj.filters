@@ -20,7 +20,7 @@
     <Filter Include="Pool">
       <UniqueIdentifier>{f207c8b5-9c29-4139-b03e-68e292a2d67d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="C2NetAPIShared">
+    <Filter Include="DHNetAPIShared">
       <UniqueIdentifier>{76904d77-36c1-4f0d-9883-48e9797d4258}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -49,8 +49,8 @@
     <ClInclude Include="DHNetWork.h">
       <Filter>DHNetWork</Filter>
     </ClInclude>
-    <ClInclude Include="C2NetworkAPIDefine.h">
-      <Filter>C2NetAPIShared</Filter>
+    <ClInclude Include="DHNetWorkAPIDefine.h">
+      <Filter>DHNetAPIShared</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -92,7 +92,7 @@ BOOL DHNetWork::Disconnect(SOCKET _Socket)
 	return LOGIC_SUCCESS;
 }
 
-BOOL DHNetWork::Recv(std::vector<Network_Message*>& _Message_Vec)
+BOOL DHNetWork::Recv(std::vector<Network_Message>& _Message_Vec)
 {
 	/// 현재 네트워크가 설정되어있지 않은경우.
 	if (Current_Type == TYPE_NONSET)

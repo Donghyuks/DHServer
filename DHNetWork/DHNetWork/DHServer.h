@@ -25,9 +25,9 @@ private:
 	// Recv시 데이터를 저장 해두고 처리하기 위함.
 	tbb::concurrent_queue<Network_Message*> Recv_Data_Queue;
 	// 조각난 데이터가 있다면 작업중인 소켓을 넣어두고 붙여준다.
-	tbb::concurrent_hash_map<SOCKET, Big_Data_Struct*> Merging_Big_Data;
+	tbb::concurrent_hash_map<SOCKET, Packet_Header*> Merging_Big_Data;
 	// 해당 해시 맵에 접근하기 위한 typedef
-	typedef tbb::concurrent_hash_map<SOCKET, Big_Data_Struct*> Big_Data_Find_Map;
+	typedef tbb::concurrent_hash_map<SOCKET, Packet_Header*> Big_Data_Find_Map;
 
 	/// 클라이언트 소켓에대한 포인터.
 	//std::list<std::shared_ptr<Socket_Struct>> g_Client_Socket_List;

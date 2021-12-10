@@ -20,19 +20,14 @@
 
 	< 변경사항 >
 		1. 큰 데이터를 받을경우에 대한 구조체 선언.
+
+	2021/12/10 11:15 - CDH
+
+	< 변경사항 >
+		1. 큰 데이터에 대한 구조체를 삭제하고 데이터 구조체에 대한 정의를 최소화 함.
+		2. 1. 번의 사항을 실행하기 위해 Overlapped 구조체에 Big Data에 대하여 받은 데이터의 크기를 저장할 변수 추가.
+
 */
-
-///////////////////////////////////////////////////////////////////////////
-///							Big Data Struct 정의							///
-///////////////////////////////////////////////////////////////////////////
-
-struct Big_Data_Struct
-{
-	// 이때까지 받았던 데이터 사이즈
-	size_t m_sizeof_Recived_Data = 0;
-	// 현재까지 받은 데이터 정보.
-	Packet_Header* m_Recived_Data = nullptr;
-};
 
 ///////////////////////////////////////////////////////////////////////////
 ///					Socket & Overlapped Struct 정의						///
@@ -77,7 +72,10 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 		OffsetHigh = 0;
 		m_Socket = INVALID_SOCKET;
 		ZeroMemory(m_Buffer, sizeof(m_Buffer));
+		ZeroMemory(m_Processing_Packet_Buffer, sizeof(m_Processing_Packet_Buffer));
 		m_Data_Size = 0;
+		m_Processing_Packet_Size = 0;
+		m_Processed_Packet_Size = 0;
 	}
 
 	/// Overlapped I/O의 작업 종류.
@@ -95,6 +93,13 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 	SOCKET			m_Socket;						// 오버랩드의 대상이되는 소켓
 	char			m_Buffer[OVERLAPPED_BUFIZE];	// Send/Recv 버퍼
 	size_t			m_Data_Size;					// 처리해야하는 데이터의 양
+
+	/// 예를들어 버퍼사이즈가 100인데, 사이즈가 60인 데이터가 동시에 두개 들어오면 100 / 20으로 나눠 들어오기 때문에, 60을 처리하고 40을 저장해둔 후, 다음 20 패킷과 같이 합쳐서 처리해야한다.
+	size_t			m_Processing_Packet_Size;						// 이전 오버랩드에서 받았던 패킷의 양
+	char			m_Processing_Packet_Buffer[OVERLAPPED_BUFIZE];	// 이전 오버랩드에서 받아온 데이터정보.
+
+	/// Big Data가 올 경우 처리된 패킷의 사이즈를 기록하기 위한 용도.
+	size_t			m_Processed_Packet_Size;
 };
 
 //////////////////////////////////////////////////////////////////////////

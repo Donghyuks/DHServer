@@ -1,5 +1,5 @@
 #include "DummyClient.h"
-#include "C2NetworkAPI.h"
+#include "DHNetworkAPI.h"
 #include "SharedDataStruct.h"
 
 #pragma comment(lib, "DHLogger.lib")
@@ -115,14 +115,14 @@ void DummyClient::StartCase2()
 	for (int i = 0; i < Make_Thread_Count / 10; i++)
 	{
 		// 무한히 보내는 쓰레드는 총 쓰레드의 10분의 1만큼 생성.
-		std::thread* _Send_Thread = new std::thread(std::bind(&DummyClient::BoundlessSendFunction, this));
+		std::thread* _Send_Thread = new std::thread(std::bind(&DummyClient::BoundlessEndFunction, this));
 		Thread_List.push_back(_Send_Thread);
 	}
 
 	for (int i = 0; i < (Make_Thread_Count - (Make_Thread_Count / 10)); i++)
 	{
 		// 무한히 접속후 종료만 하는 쓰레드 10분의 9만큼 생성.
-		std::thread* _End_Thread = new std::thread(std::bind(&DummyClient::BoundlessEndFunction, this));
+		std::thread* _End_Thread = new std::thread(std::bind(&DummyClient::BoundlessSendFunction, this));
 		Thread_List.push_back(_End_Thread);
 	}
 }
@@ -155,17 +155,22 @@ void DummyClient::StartCase2()
 
 void DummyClient::BoundlessSendFunction()
 {
-	C2S_Message* _msg = new C2S_Message;
+	C2S_Packet* _msg = new C2S_Packet;
+	C2S_Packet* _msg2 = new C2S_Packet;
 	std::vector<Network_Message*> Message_Vec;
-	strcpy_s(_msg->Message_Buffer, std::string("TestClient").c_str());
-	C2NetWorkAPI* my_NetWork = nullptr;
+	strcpy_s(_msg->Packet_Buffer, std::string("TestClient").c_str());
+	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+	_msg->Packet_Size = std::string("TestClient").length();
+	strcpy_s(_msg2->Packet_Buffer, std::string("ZZZZZZZZZZZZZZZZZ").c_str());
+	_msg2->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+	_msg2->Packet_Size = std::string("ZZZZZZZZZZZZZZZZZ").length();
+	DHNetWorkAPI* my_NetWork = nullptr;
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
-	my_NetWork = new C2NetWorkAPI();
-	my_NetWork->Initialize(C2NetWork_Name::DHNet);
+	my_NetWork = new DHNetWorkAPI();
+	my_NetWork->Initialize(DHNetWork_Name::DHNet);
 	// Connect 까지 대기..
-	//while (!my_NetWork->Connect(9000, "192.168.0.56")) {}
-	while (!my_NetWork->Connect(729, CONNECT_IP)) {}
+	while (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP)) {}
 
 	while (!End_Flag)
 	{
@@ -173,6 +178,7 @@ void DummyClient::BoundlessSendFunction()
 		_Start_Time = std::chrono::system_clock::now();
 
 		my_NetWork->Send(_msg);
+		my_NetWork->Send(_msg2);
 
 		std::chrono::duration<double> _Proceed_Time = std::chrono::system_clock::now() - _Start_Time;
 		double _Poceed_Time_Ms = _Proceed_Time.count() * 1000;
@@ -196,10 +202,12 @@ void DummyClient::BoundlessSendFunction()
 
 void DummyClient::BoundlessEndFunction()
 {
-	C2S_Message* _msg = new C2S_Message;
+	C2S_Packet* _msg = new C2S_Packet;
 	std::vector<Network_Message*> Message_Vec;
-	strcpy_s(_msg->Message_Buffer, std::string("TestClient").c_str());
-	C2NetWorkAPI* my_NetWork = nullptr;
+	strcpy_s(_msg->Packet_Buffer, std::string("TestClient").c_str());
+	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+	_msg->Packet_Size = sizeof(std::string("TestClient").c_str());
+	DHNetWorkAPI* my_NetWork = nullptr;
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
 	while (!End_Flag)
@@ -207,11 +215,11 @@ void DummyClient::BoundlessEndFunction()
 		if (my_NetWork == nullptr)
 		{
 			_Start_Time = std::chrono::system_clock::now();
-			my_NetWork = new C2NetWorkAPI();
-			my_NetWork->Initialize(C2NetWork_Name::DHNet);
+			my_NetWork = new DHNetWorkAPI();
+			my_NetWork->Initialize(DHNetWork_Name::DHNet);
 		}
 		// Connect 까지 대기..
-		if (!my_NetWork->Connect(9000, CONNECT_IP))
+		if (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP))
 		{
 			continue;
 		}
@@ -240,9 +248,11 @@ void DummyClient::BoundlessEndFunction()
 
 void DummyClient::SendEndFunction()
 {
-	C2S_Message* _msg = new C2S_Message;
-	strcpy_s(_msg->Message_Buffer, std::string("TestClient").c_str());
-	C2NetWorkAPI* my_NetWork = nullptr;
+	C2S_Packet* _msg = new C2S_Packet;
+	strcpy_s(_msg->Packet_Buffer, std::string("TestClient").c_str());
+	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+	_msg->Packet_Size = sizeof(std::string("TestClient").c_str());
+	DHNetWorkAPI* my_NetWork = nullptr;
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
 	while (!End_Flag)
@@ -250,13 +260,13 @@ void DummyClient::SendEndFunction()
 		if (my_NetWork == nullptr)
 		{
 			_Start_Time = std::chrono::system_clock::now();
-			my_NetWork = new C2NetWorkAPI();
-			my_NetWork->Initialize(C2NetWork_Name::DHNet);
+			my_NetWork = new DHNetWorkAPI();
+			my_NetWork->Initialize(DHNetWork_Name::DHNet);
 		}
 		// Connect 까지 대기..
-		bool _Test_Result = my_NetWork->Connect(9000, CONNECT_IP);
+		bool _Test_Result = my_NetWork->Connect(CONNECT_PORT, CONNECT_IP);
 
-		if (!my_NetWork->Connect(9000, CONNECT_IP))
+		if (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP))
 		{
 			continue;
 		}

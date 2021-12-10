@@ -37,9 +37,65 @@ BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 
 	// 등록되지 않은 패킷은 전송할 수 없다.
 	// [클라] -> [서버]
-	if (C2S_Packet_Type_MAX <= Send_Packet->Packet_Type)
+	if (C2S_Packet_Type_None == Send_Packet->Packet_Type)
 	{
 		return FALSE;
+	}
+
+	// 보낼 패킷의 총 사이즈 (헤더 + 실제 버퍼에 들어있는 패킷 사이즈)
+	size_t Total_Packet_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
+
+	// 만약 패킷의 사이즈가 준비된 버퍼보다 크다면 잘라서 여러개로 보내준다.
+	if (OVERLAPPED_BUFIZE < Total_Packet_Size)
+	{
+		// Buffer를 얼만큼 위치에서 잘라야하는지 나타내기위함.
+		size_t Buff_Offset = 1;
+
+		while (Total_Packet_Size > OVERLAPPED_BUFIZE)
+		{
+			// 오버랩드 셋팅
+			Overlapped_Struct* psOverlapped = new Overlapped_Struct;
+			psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Send;
+			psOverlapped->m_Socket = g_Server_Socket->m_Socket;
+
+			// 패킷 복사
+			psOverlapped->m_Data_Size = OVERLAPPED_BUFIZE;
+			Total_Packet_Size -= OVERLAPPED_BUFIZE;
+
+			memcpy_s(psOverlapped->m_Buffer, OVERLAPPED_BUFIZE, Send_Packet, (Buff_Offset * OVERLAPPED_BUFIZE));
+
+			Buff_Offset++;
+
+			// WSABUF 셋팅
+			WSABUF wsaBuffer;
+			wsaBuffer.buf = psOverlapped->m_Buffer;
+			wsaBuffer.len = psOverlapped->m_Data_Size;
+
+			// WSASend() 오버랩드 걸기
+			DWORD dwNumberOfBytesSent = 0;
+
+			int iResult = WSASend(psOverlapped->m_Socket,
+				&wsaBuffer,
+				1,
+				&dwNumberOfBytesSent,
+				0,
+				psOverlapped,
+				nullptr);
+
+			if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
+			{
+				/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
+				TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
+				_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASend() :"));
+				err_display(szBuffer);
+
+				Safe_CloseSocket();
+				delete psOverlapped;
+
+				return LOGIC_FAIL;
+			}
+
+		}
 	}
 
 	// 오버랩드 셋팅
@@ -48,13 +104,7 @@ BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 	psOverlapped->m_Socket = g_Server_Socket->m_Socket;
 
 	// 패킷 복사
-	psOverlapped->m_Data_Size = 2 + Send_Packet->Packet_Size;
-
-	if (sizeof(psOverlapped->m_Buffer) < psOverlapped->m_Data_Size)
-	{
-		delete psOverlapped;
-		return FALSE;
-	}
+	psOverlapped->m_Data_Size = Total_Packet_Size;
 
 	memcpy_s(psOverlapped->m_Buffer, sizeof(psOverlapped->m_Buffer), Send_Packet, psOverlapped->m_Data_Size);
 
@@ -83,12 +133,14 @@ BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 
 		Safe_CloseSocket();
 		delete psOverlapped;
+
+		return LOGIC_FAIL;
 	}
 
-	return TRUE;
+	return LOGIC_SUCCESS;
 }
 
-BOOL DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
+BOOL DHClient::Recv(std::vector<Network_Message>& _Message_Vec)
 {
 	/// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
@@ -102,7 +154,7 @@ BOOL DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
 		Recv_Data_Queue.try_pop(_Net_Msg);
 
 		/// 빼온 데이터를 넣어서 보냄.
-		_Message_Vec.emplace_back(_Net_Msg);
+		_Message_Vec.push_back(*_Net_Msg);
 		/// 메세지 타입으로 Header 캐스팅.
 		//C2S_Packet* C2S_Msg = static_cast<C2S_Packet*>(cpcHeader);
 
@@ -121,7 +173,7 @@ BOOL DHClient::Recv(std::vector<Network_Message*>& _Message_Vec)
 		//}
 
 		// 해제.
-		//delete cpcHeader;
+		delete _Net_Msg;
 	}
 
 	/// 큐에 데이터를 다 빼면 TRUE 반환.
@@ -468,7 +520,7 @@ void DHClient::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 	while (psOverlapped->m_Data_Size > 0)
 	{
 		// header 크기는 2 바이트( 고정 )
-		static const unsigned short cusHeaderSize = 2;
+		static const unsigned short cusHeaderSize = PACKET_HEADER_SIZE;
 
 		// header 를 다 받지 못했다. 이어서 recv()
 		if (cusHeaderSize > psOverlapped->m_Data_Size)
