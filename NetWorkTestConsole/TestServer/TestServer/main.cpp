@@ -23,8 +23,12 @@ int main()
 				case C2S_Packet_Type_Message:         // 채팅 메세지
 				{
 					/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
-					char* Msg_Buff = new char[ERROR_MSG_BUFIZE];
-					memcpy_s(Msg_Buff, ERROR_MSG_BUFIZE, C2S_Msg->Packet_Buffer, ERROR_MSG_BUFIZE);
+					char* Msg_Buff = new char[MAX_PACKET_SIZE];
+					memcpy_s(Msg_Buff, MAX_PACKET_SIZE, C2S_Msg->Packet_Buffer, C2S_Msg->Packet_Size);
+
+					printf_s("[SOCKET : %d] ", Msg_Packet.Socket);
+					printf_s(Msg_Buff);
+					printf_s("\n");
 				}
 				break;
 				}

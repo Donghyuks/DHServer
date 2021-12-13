@@ -45,99 +45,110 @@ BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 	// 보낼 패킷의 총 사이즈 (헤더 + 실제 버퍼에 들어있는 패킷 사이즈)
 	size_t Total_Packet_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
 
+	// Buffer를 얼만큼 위치에서 잘라야하는지 나타내기위함.
+	size_t Buff_Offset = 0;
+
 	// 만약 패킷의 사이즈가 준비된 버퍼보다 크다면 잘라서 여러개로 보내준다.
-	if (OVERLAPPED_BUFIZE < Total_Packet_Size)
+	while (Total_Packet_Size > 0)
 	{
-		// Buffer를 얼만큼 위치에서 잘라야하는지 나타내기위함.
-		size_t Buff_Offset = 1;
+		// 오버랩드 셋팅
+		Overlapped_Struct* psOverlapped = new Overlapped_Struct;
+		psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Send;
+		psOverlapped->m_Socket = g_Server_Socket->m_Socket;
 
-		while (Total_Packet_Size > OVERLAPPED_BUFIZE)
+		// 패킷 복사
+		// 패킷이 아직 오버랩드 버퍼보다 사이즈가 큰 경우
+		if (Total_Packet_Size >= OVERLAPPED_BUFIZE)
 		{
-			// 오버랩드 셋팅
-			Overlapped_Struct* psOverlapped = new Overlapped_Struct;
-			psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Send;
-			psOverlapped->m_Socket = g_Server_Socket->m_Socket;
-
-			// 패킷 복사
 			psOverlapped->m_Data_Size = OVERLAPPED_BUFIZE;
 			Total_Packet_Size -= OVERLAPPED_BUFIZE;
-
-			memcpy_s(psOverlapped->m_Buffer, OVERLAPPED_BUFIZE, Send_Packet, (Buff_Offset * OVERLAPPED_BUFIZE));
-
-			Buff_Offset++;
-
-			// WSABUF 셋팅
-			WSABUF wsaBuffer;
-			wsaBuffer.buf = psOverlapped->m_Buffer;
-			wsaBuffer.len = psOverlapped->m_Data_Size;
-
-			// WSASend() 오버랩드 걸기
-			DWORD dwNumberOfBytesSent = 0;
-
-			int iResult = WSASend(psOverlapped->m_Socket,
-				&wsaBuffer,
-				1,
-				&dwNumberOfBytesSent,
-				0,
-				psOverlapped,
-				nullptr);
-
-			if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
-			{
-				/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-				TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
-				_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASend() :"));
-				err_display(szBuffer);
-
-				Safe_CloseSocket();
-				delete psOverlapped;
-
-				return LOGIC_FAIL;
-			}
-
+			memcpy_s(psOverlapped->m_Buffer, OVERLAPPED_BUFIZE, (char*)Send_Packet + (Buff_Offset * OVERLAPPED_BUFIZE), OVERLAPPED_BUFIZE);
 		}
-	}
+		// 오버랩드 버퍼보다 사이즈가 작은 경우
+		else
+		{
+			psOverlapped->m_Data_Size = Total_Packet_Size;
+			size_t test_index = (Buff_Offset * OVERLAPPED_BUFIZE);
+			memcpy_s(psOverlapped->m_Buffer, OVERLAPPED_BUFIZE, (char*)Send_Packet + (Buff_Offset * OVERLAPPED_BUFIZE), Total_Packet_Size);
+			Total_Packet_Size = 0;
+		}
 
-	// 오버랩드 셋팅
-	Overlapped_Struct* psOverlapped = new Overlapped_Struct;
-	psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Send;
-	psOverlapped->m_Socket = g_Server_Socket->m_Socket;
 
-	// 패킷 복사
-	psOverlapped->m_Data_Size = Total_Packet_Size;
+		Buff_Offset++;
 
-	memcpy_s(psOverlapped->m_Buffer, sizeof(psOverlapped->m_Buffer), Send_Packet, psOverlapped->m_Data_Size);
+		// WSABUF 셋팅
+		WSABUF wsaBuffer;
+		wsaBuffer.buf = psOverlapped->m_Buffer;
+		wsaBuffer.len = psOverlapped->m_Data_Size;
 
-	// WSABUF 셋팅
-	WSABUF wsaBuffer;
-	wsaBuffer.buf = psOverlapped->m_Buffer;
-	wsaBuffer.len = psOverlapped->m_Data_Size;
+		// WSASend() 오버랩드 걸기
+		DWORD dwNumberOfBytesSent = 0;
 
-	// WSASend() 오버랩드 걸기
-	DWORD dwNumberOfBytesSent = 0;
+		int iResult = WSASend(psOverlapped->m_Socket,
+			&wsaBuffer,
+			1,
+			&dwNumberOfBytesSent,
+			0,
+			psOverlapped,
+			nullptr);
 
-	int iResult = WSASend(psOverlapped->m_Socket,
-		&wsaBuffer,
-		1,
-		&dwNumberOfBytesSent,
-		0,
-		psOverlapped,
-		nullptr);
+		if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
+		{
+			/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
+			TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
+			_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASend() :"));
+			err_display(szBuffer);
 
-	if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
-	{
-		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
-		_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASend() :"));
-		err_display(szBuffer);
+			Safe_CloseSocket();
+			delete psOverlapped;
 
-		Safe_CloseSocket();
-		delete psOverlapped;
+			return LOGIC_FAIL;
+		}
 
-		return LOGIC_FAIL;
 	}
 
 	return LOGIC_SUCCESS;
+
+	//// 오버랩드 셋팅
+	//Overlapped_Struct* psOverlapped = new Overlapped_Struct;
+	//psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Send;
+	//psOverlapped->m_Socket = g_Server_Socket->m_Socket;
+
+	//// 패킷 복사
+	//psOverlapped->m_Data_Size = Total_Packet_Size;
+
+	//memcpy_s(psOverlapped->m_Buffer, sizeof(psOverlapped->m_Buffer), Send_Packet, psOverlapped->m_Data_Size);
+
+	//// WSABUF 셋팅
+	//WSABUF wsaBuffer;
+	//wsaBuffer.buf = psOverlapped->m_Buffer;
+	//wsaBuffer.len = psOverlapped->m_Data_Size;
+
+	//// WSASend() 오버랩드 걸기
+	//DWORD dwNumberOfBytesSent = 0;
+
+	//int iResult = WSASend(psOverlapped->m_Socket,
+	//	&wsaBuffer,
+	//	1,
+	//	&dwNumberOfBytesSent,
+	//	0,
+	//	psOverlapped,
+	//	nullptr);
+
+	//if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
+	//{
+	//	/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
+	//	TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
+	//	_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 클라이언트] 에러 발생 -- WSASend() :"));
+	//	err_display(szBuffer);
+
+	//	Safe_CloseSocket();
+	//	delete psOverlapped;
+
+	//	return LOGIC_FAIL;
+	//}
+
+	//return LOGIC_SUCCESS;
 }
 
 BOOL DHClient::Recv(std::vector<Network_Message>& _Message_Vec)

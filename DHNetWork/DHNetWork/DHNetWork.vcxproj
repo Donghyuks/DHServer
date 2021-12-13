@@ -147,7 +147,13 @@ copy /Y "$(TargetDir)*.dll" "$(SolutionDir)lib\Debug"
 copy /Y "$(ProjectDir)DHNetWork.h" "$(SolutionDir)Inc"
 copy /Y "$(ProjectDir)NetWorkDefine.h" "$(SolutionDir)Inc"
 copy /Y "$(ProjectDir)DHNetworkAPIDefine.h" "$(SolutionDir)Inc"
-copy /Y "$(ProjectDir)SharedDataStruct.h" "$(SolutionDir)Inc"</Command>
+copy /Y "$(ProjectDir)SharedDataStruct.h" "$(SolutionDir)Inc"
+copy /Y "$(SolutionDir)Inc\*.h" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\Inc"
+copy /Y "$(SolutionDir)lib\Debug\*.lib" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\lib\Debug"
+copy /Y "$(SolutionDir)lib\Debug\*.dll" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\lib\Debug"
+copy /Y "$(SolutionDir)Inc\*.h" "$(SolutionDir)..\NetWorkTestConsole\TestServer\ImportLibrary\Inc"
+copy /Y "$(SolutionDir)lib\Debug\*.lib" "$(SolutionDir)..\NetWorkTestConsole\TestServer\ImportLibrary\lib\Debug"
+copy /Y "$(SolutionDir)lib\Debug\*.dll" "$(SolutionDir)..\NetWorkTestConsole\TestServer\ImportLibrary\lib\Debug"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

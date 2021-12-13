@@ -7,6 +7,8 @@
 #include <thread>
 #include <vector>
 #include <atomic>
+#include <string>
+#include <random>
 
 class DHKeyIO;
 class DHLogger;
@@ -22,6 +24,9 @@ private:
 		Case2,
 		Case3,
 	};
+
+	/// 임의로 보낼 데이터
+	std::string Test_Send_Msg = "[Client] BoundlessSend";
 
 private:
 	DHKeyIO* Key_IO = nullptr;
@@ -61,10 +66,8 @@ private:
 	// 테스트 케이스 재생.
 	void StartCase1();
 	void StartCase2();
-	/// 추후 구현..
-	//void StartCase3();
+	void StartCase3();
 public:
 	DummyClient();
 	~DummyClient();
 };
-

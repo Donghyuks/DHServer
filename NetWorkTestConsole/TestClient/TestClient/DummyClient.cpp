@@ -49,10 +49,9 @@ int DummyClient::GetCoreCount()
 
 DummyClient::DummyClient()
 {
-	// 만들 쓰레드 개수는 컴퓨터 코어 개수 -1 *2 개 만큼 생성한다.
-	// Logger 를 위한 쓰레드 하나를 할당하기 위해서 한개를 덜 할당함.
-	//Make_Thread_Count = (GetCoreCount() - 1) * 2;
-	Make_Thread_Count = 1;
+	// 만들 쓰레드 개수는 적절하게.. 10개정도로
+	//Make_Thread_Count = (GetCoreCount() - 1) * 2;	// 컴퓨터 코어 개수만큼 생성
+	Make_Thread_Count = 10;
 
 	Key_IO = new DHKeyIO;
 	Logger = new DHLogger(_T("DummyClient"));
@@ -126,44 +125,40 @@ void DummyClient::StartCase2()
 		Thread_List.push_back(_End_Thread);
 	}
 }
-//
-//void DummyClient::StartCase3()
-//{
-//	// 쓰레드를 사용할 준비가 되어있고, 이미 테스트케이스가 진행중이지 않으면
-//	if (End_Flag == true)
-//	{
-//		printf("[DummyClient] CASE_%d 번을 종료하는 중입니다. 잠시 후 다시 시도해주세요. \n", (int)Current_TestCase);
-//		return;
-//	}
-//
-//	if (Thread_List.size() != 0)
-//	{
-//		printf("[DummyClient] 이미 CASE_%d 번이 실행중입니다. 종료 후 시도해주세요. \n 종료 키는 [Q] 입니다.\n", (int)Current_TestCase);
-//		return;
-//	}
-//
-//	// 현재 테스트케이스는 2번이라고 저장.
-//	Current_TestCase = TestCaseNumber::Case3;
-//
-//	for (int i = 0; i < Make_Thread_Count; i++)
-//	{
-//		// 다양한 패킷을 보내는 쓰레드.
-//		std::thread* _Send_Various_Packet_Thread = new std::thread(std::bind(&DummyClient::SendVariousPacketFunction, this));
-//		Thread_List.push_back(_Send_Various_Packet_Thread);
-//	}
-//}
+
+void DummyClient::StartCase3()
+{
+	// 쓰레드를 사용할 준비가 되어있고, 이미 테스트케이스가 진행중이지 않으면
+	if (End_Flag == true)
+	{
+		printf("[DummyClient] CASE_%d 번을 종료하는 중입니다. 잠시 후 다시 시도해주세요. \n", (int)Current_TestCase);
+		return;
+	}
+
+	if (Thread_List.size() != 0)
+	{
+		printf("[DummyClient] 이미 CASE_%d 번이 실행중입니다. 종료 후 시도해주세요. \n 종료 키는 [Q] 입니다.\n", (int)Current_TestCase);
+		return;
+	}
+
+	// 현재 테스트케이스는 3번이라고 저장.
+	Current_TestCase = TestCaseNumber::Case3;
+
+	for (int i = 0; i < Make_Thread_Count; i++)
+	{
+		// 다양한 패킷을 보내는 쓰레드.
+		std::thread* _Send_Various_Packet_Thread = new std::thread(std::bind(&DummyClient::SendVariousPacketFunction, this));
+		Thread_List.push_back(_Send_Various_Packet_Thread);
+	}
+}
 
 void DummyClient::BoundlessSendFunction()
 {
 	C2S_Packet* _msg = new C2S_Packet;
-	C2S_Packet* _msg2 = new C2S_Packet;
 	std::vector<Network_Message*> Message_Vec;
-	strcpy_s(_msg->Packet_Buffer, std::string("TestClient").c_str());
+	strcpy_s(_msg->Packet_Buffer, Test_Send_Msg.c_str());
 	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
-	_msg->Packet_Size = std::string("TestClient").length();
-	strcpy_s(_msg2->Packet_Buffer, std::string("ZZZZZZZZZZZZZZZZZ").c_str());
-	_msg2->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
-	_msg2->Packet_Size = std::string("ZZZZZZZZZZZZZZZZZ").length();
+	_msg->Packet_Size = Test_Send_Msg.size()+1;
 	DHNetWorkAPI* my_NetWork = nullptr;
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
@@ -178,7 +173,6 @@ void DummyClient::BoundlessSendFunction()
 		_Start_Time = std::chrono::system_clock::now();
 
 		my_NetWork->Send(_msg);
-		my_NetWork->Send(_msg2);
 
 		std::chrono::duration<double> _Proceed_Time = std::chrono::system_clock::now() - _Start_Time;
 		double _Poceed_Time_Ms = _Proceed_Time.count() * 1000;
@@ -295,7 +289,57 @@ void DummyClient::SendEndFunction()
 
 void DummyClient::SendVariousPacketFunction()
 {
+	thread_local std::mt19937 generator(std::random_device{}());
 
+	std::uniform_int_distribution<int> distribution(0, 100000000);
+
+	srand(distribution(generator));
+
+	C2S_Packet* _msg = new C2S_Packet;
+	std::vector<Network_Message*> Message_Vec;
+	std::string Random_Range_String = "";
+	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+
+	DHNetWorkAPI* my_NetWork = nullptr;
+	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
+
+	my_NetWork = new DHNetWorkAPI();
+	my_NetWork->Initialize(DHNetWork_Name::DHNet);
+	// Connect 까지 대기..
+	while (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP)) {}
+
+	while (!End_Flag)
+	{
+		// Send 시 1~2200 사이의 랜덤한 길이의 메세지를 보냄. (Buffer의 사이즈인 2048을 초과하는 값을 보내도 20480까지 데이터는 받을 수 있다.)
+		int Random_Number = rand() % 2200;
+		Random_Range_String.resize(Random_Number,'A');
+
+		strcpy_s(_msg->Packet_Buffer, Random_Range_String.c_str());
+		_msg->Packet_Size = Random_Range_String.size() + 1;
+
+		/// Send 시간 측정.
+		_Start_Time = std::chrono::system_clock::now();
+
+		my_NetWork->Send(_msg);
+
+		std::chrono::duration<double> _Proceed_Time = std::chrono::system_clock::now() - _Start_Time;
+		double _Poceed_Time_Ms = _Proceed_Time.count() * 1000;
+
+		/// 1회 실행했다고 횟수측정.
+		Total_Count_1.fetch_add(1);
+		/// 1회 실행시 걸린 시간을 기록해둔다.
+		Total_Time_1.fetch_add(_Poceed_Time_Ms, std::memory_order_relaxed);
+
+		/// 너무 많이보내면 결과확인이 어려워서.. sleep 1000만큼 준다. 결과자체는 유의미함.
+		Sleep(1000);
+	}
+
+	/// 만약 종료플래그를 켰는데 connect작업중인 네트워크가 존재하면 끊어줌.
+	if (my_NetWork != nullptr)
+	{
+		my_NetWork->End();
+		my_NetWork = nullptr;
+	}
 }
 
 void DummyClient::StopAllThread()
@@ -388,7 +432,7 @@ void DummyClient::KeyInputFunction()
 	printf("[DummyClient] 더미 클라이언트 테스트를 시작합니다. \n");
 	printf(" => CASE1[ 접속 -> 보내기 -> 종료 무한반복] \t\t\t 실행 키 : Key[1] \n");
 	printf(" => CASE2[ 접속 -> 종료 // 접속 -> 보내기 무한반복] \t\t 실행 키 : Key[2] \n");
-	//printf(" => CASE3[ 접속 -> 보내기(다양한 패킷) 무한반복] \t\t 실행 키 : Key[3] \n");
+	printf(" => CASE3[ 접속 -> 보내기(다양한 패킷) 무한반복] \t\t 실행 키 : Key[3] \n");
 
 	while (true)
 	{
@@ -406,6 +450,10 @@ void DummyClient::KeyInputFunction()
 		if (Key_IO->Key_Down('2'))
 		{
 			StartCase2();
+		}
+		if (Key_IO->Key_Down('3'))
+		{
+			StartCase3();
 		}
 
 		Sleep(0);

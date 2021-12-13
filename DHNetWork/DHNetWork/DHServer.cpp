@@ -657,6 +657,26 @@ bool DHServer::BroadCastMessage(Packet_Header* psPacket)
 	return true;
 }
 
+bool DHServer::BackUp_Overlapped(Overlapped_Struct* psOverlapped)
+{
+	if ((psOverlapped->m_Processed_Packet_Size + psOverlapped->m_Data_Size)> MAX_PACKET_SIZE)
+	{
+		printf_s("[TCP 서버] 클라이언트로 [%d]Byte 를 초과하는 패킷 처리가 들어왔습니다. \n", MAX_PACKET_SIZE);
+		assert(LOGIC_FAIL);
+		
+		return false;
+	}
+
+	// 지금 들어온 데이터에 대한 백업을 해놓는다.
+	memcpy_s(psOverlapped->m_Processing_Packet_Buffer + psOverlapped->m_Processed_Packet_Size, MAX_PACKET_SIZE - psOverlapped->m_Processed_Packet_Size,
+		psOverlapped->m_Buffer, psOverlapped->m_Data_Size);
+	
+	// 수신한 데이터들 크기를 누적 시켜준다.
+	psOverlapped->m_Processed_Packet_Size += psOverlapped->m_Data_Size;
+
+	return true;
+}
+
 bool DHServer::BigData_Init(Big_Data_Find_Map::accessor& _Accessor, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct)
 {
 	size_t Merge_Data_Size = 0;
@@ -748,11 +768,11 @@ bool DHServer::Push_RecvData(Packet_Header* _Data_Packet, Socket_Struct* _Socket
 	Recv_Data_Queue.push(_Net_Msg);
 
 	// 데이터들을 이번에 처리한만큼 당긴다.
-	memcpy_s(_Overlapped_Struct->m_Buffer, OVERLAPPED_BUFIZE,
-		_Overlapped_Struct->m_Buffer + _Pull_Size, _Overlapped_Struct->m_Data_Size - _Pull_Size);
+	memcpy_s(_Overlapped_Struct->m_Processing_Packet_Buffer, MAX_PACKET_SIZE,
+		_Overlapped_Struct->m_Processing_Packet_Buffer + _Pull_Size, MAX_PACKET_SIZE - _Pull_Size);
 
 	// 처리한 패킷 크기만큼 처리할량 감소
-	_Overlapped_Struct->m_Data_Size -= _Pull_Size;
+	_Overlapped_Struct->m_Processed_Packet_Size -= _Pull_Size;
 
 	return LOGIC_SUCCESS;
 }
@@ -774,87 +794,64 @@ bool DHServer::FindSocketOnClient(SOCKET _Target)
 
 void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
+	// 아무 데이터도 받지 못했으면 Overlapped 재사용.
+	if (dwNumberOfBytesTransferred <= 0)
+	{
+		// 수신 걸기( 이번에 사용한 오버랩드를 다시 사용 )
+		if (!Reserve_WSAReceive(psOverlapped->m_Socket, psOverlapped))
+		{
+			// 클라이언트 종료
+			SOCKET _Socket_Data = psSocket->m_Socket;
+			Delete_in_Socket_List(psSocket);
+			Reuse_Socket(_Socket_Data);
+			Available_Overlapped->ResetObject(psOverlapped);
+		}
+		return;
+	}
+
 	printf_s("[TCP 서버] [%15s:%5d] 패킷 수신 완료 <- %d 바이트\n", psSocket->IP.c_str(), psSocket->PORT, dwNumberOfBytesTransferred);
 
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	 // 패킷 처리
-	 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	 // 수신한 데이터들 크기를 누적 시켜준다.
-	psOverlapped->m_Data_Size += dwNumberOfBytesTransferred;
+	// 이번에 받은 데이터 양
+	psOverlapped->m_Data_Size = dwNumberOfBytesTransferred;
+
+	// 이번에 받아온 버퍼 데이터만큼 처리할 버퍼로 옮긴다.
+	if (BackUp_Overlapped(psOverlapped) == false)
+	{
+		// 클라이언트 종료
+		SOCKET _Socket_Data = psSocket->m_Socket;
+		Delete_in_Socket_List(psSocket);
+		Reuse_Socket(_Socket_Data);
+		Available_Overlapped->ResetObject(psOverlapped);
+		return;
+	}
 
 	// 처리할 데이터가 있으면 처리
-	while (psOverlapped->m_Data_Size > 0)
+	while (psOverlapped->m_Processed_Packet_Size > 0)
 	{
 		// header 를 다 받지 못했다. 이어서 recv()
-		if (PACKET_HEADER_SIZE > psOverlapped->m_Data_Size)
+		if (PACKET_HEADER_SIZE > psOverlapped->m_Processed_Packet_Size)
 		{
-			psOverlapped->m_Processing_Packet_Size = psOverlapped->m_Data_Size;
-			/// 이어서 recv 하기전에, 지금 들어온 데이터에 대한 백업을 해놓는다.
-			memcpy_s(psOverlapped->m_Processing_Packet_Buffer, OVERLAPPED_BUFIZE,
-				psOverlapped->m_Buffer, psOverlapped->m_Data_Size);
-
 			break;
-		}
-
-		// 만약 큰 데이터를 처리할 일이 있다면..
-		if (!Merging_Big_Data.empty())
-		{
-			{
-				Big_Data_Find_Map::accessor m_Accessor;
-
-				// 합치는 작업중인 소켓이라면
-				if (Merging_Big_Data.find(m_Accessor, psSocket->m_Socket))
-				{
-					if (BigData_Init(m_Accessor, psSocket, psOverlapped) == false)
-					{
-						m_Accessor.release();
-						return;
-					}
-					else
-					{
-						m_Accessor.release();
-						break;
-					}
-				}
-			}
 		}
 
 		// 패킷 헤더에 대한 포인터
 		Packet_Header* Packet_header = nullptr;
 
 		// 버퍼에 들어온 데이터는 가변길이 사이즈이다. (size_t 로 치환하는 이유는, 패킷의 사이즈를 size_t 값으로 저장해서 들어오기 때문이다.)
-		size_t Packet_Body_Size = *reinterpret_cast<size_t*>(psOverlapped->m_Buffer);
+		size_t Packet_Body_Size = *reinterpret_cast<size_t*>(psOverlapped->m_Processing_Packet_Buffer);
 
-		// 만약 패킷의 사이즈가 Overlapped의 버퍼보다 큰 경우 따로 모아서 합친 후 처리한다.
-		if (Packet_Body_Size > OVERLAPPED_BUFIZE)
-		{
-			// 클라이언트로부터 수신한 패킷
-			Packet_header = reinterpret_cast<Packet_Header*>(malloc(psOverlapped->m_Data_Size));
-			memcpy_s(Packet_header, psOverlapped->m_Data_Size, psOverlapped->m_Buffer, psOverlapped->m_Data_Size);
-
-			// 큰 패킷에 대한 처리 목록에 추가 해준다.
-			Merging_Big_Data.insert({ psSocket->m_Socket , Packet_header });
-
-			break;
-		}
-
-		/// 오버랩드 구조체의 버퍼보다는 크기가 작은 패킷이 들어온 경우의 총 패킷 사이즈.
+		// 총 패킷 사이즈.
 		size_t Packet_Total_Size = PACKET_HEADER_SIZE + Packet_Body_Size;
 
 		// 하나의 패킷을 다 받지 못했다. 이어서 recv()
-		if (Packet_Total_Size > psOverlapped->m_Data_Size)
+		if (Packet_Total_Size > psOverlapped->m_Processed_Packet_Size)
 		{
-			/// 이어서 recv 하기전에, 지금 들어온 데이터에 대한 백업을 해놓는다.
-			psOverlapped->m_Processing_Packet_Size = psOverlapped->m_Data_Size;
-			memcpy_s(psOverlapped->m_Processing_Packet_Buffer, OVERLAPPED_BUFIZE,
-				psOverlapped->m_Buffer, psOverlapped->m_Data_Size);
-
 			break;
 		}
 
 		// 클라이언트로부터 수신한 패킷(완성된 패킷)
 		Packet_header = reinterpret_cast<Packet_Header*>(malloc(Packet_Total_Size));
-		memcpy_s(Packet_header, Packet_Total_Size, psOverlapped->m_Buffer, Packet_Total_Size);
+		memcpy_s(Packet_header, Packet_Total_Size, psOverlapped->m_Processing_Packet_Buffer, Packet_Total_Size);
 
 		if (Push_RecvData(Packet_header, psSocket, psOverlapped, Packet_Total_Size) == false) 
 		{ 

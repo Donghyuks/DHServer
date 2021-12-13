@@ -35,9 +35,7 @@ BOOL DHNetWork::Send(Packet_Header* _Packet, SOCKET _Socket /*= INVALID_SOCKET*/
 		std::cout << "[DHNetWork] Client로 생성된 네트워크에선 연결된 서버소켓에 Send를 합니다.\n[Send 경고] 해당 Socket 정보가 무시됨.\n" << std::endl;
 	}
 
-	m_NetWork->Send(_Packet, _Socket);
-
-	return LOGIC_SUCCESS;
+	return m_NetWork->Send(_Packet, _Socket);
 }
 
 BOOL DHNetWork::Connect(unsigned short _Port, std::string _IP)
@@ -87,9 +85,7 @@ BOOL DHNetWork::Disconnect(SOCKET _Socket)
 	}
 
 	/// 해당하는 소켓의 연결을 끊어줌.
-	m_NetWork->Disconnect(_Socket);
-
-	return LOGIC_SUCCESS;
+	return m_NetWork->Disconnect(_Socket);
 }
 
 BOOL DHNetWork::Recv(std::vector<Network_Message>& _Message_Vec)
@@ -102,9 +98,7 @@ BOOL DHNetWork::Recv(std::vector<Network_Message>& _Message_Vec)
 	}
 
 	/// 서버 / 클라이언트에 해당하는 함수를 호출해줌.
-	m_NetWork->Recv(_Message_Vec);
-
-	return LOGIC_FAIL;
+	return m_NetWork->Recv(_Message_Vec);
 }
 
 BOOL DHNetWork::End()
@@ -117,9 +111,7 @@ BOOL DHNetWork::End()
 	}
 
 	/// 서버 / 클라이언트에 해당하는 함수를 호출해줌.
-	m_NetWork->End();
-
-	return LOGIC_FAIL;
+	return m_NetWork->End();
 }
 
 void DHNetWork::PrintTypeErrMessage()

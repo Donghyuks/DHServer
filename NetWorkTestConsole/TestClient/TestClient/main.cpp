@@ -1,4 +1,5 @@
 
+#include <time.h>
 #include "DummyClient.h"
 
 int main()

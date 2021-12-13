@@ -72,7 +72,9 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 		OffsetHigh = 0;
 		m_Socket = INVALID_SOCKET;
 		ZeroMemory(m_Buffer, sizeof(m_Buffer));
+		ZeroMemory(m_Processing_Packet_Buffer, sizeof(m_Processing_Packet_Buffer));
 		m_Data_Size = 0;
+		m_Processing_Packet_Size = 0;
 		m_Processed_Packet_Size = 0;
 	}
 
@@ -89,8 +91,13 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 
 	IOType			m_IOType;						// 처리결과를 통보받은 후 작업을 구분하기 위해.
 	SOCKET			m_Socket;						// 오버랩드의 대상이되는 소켓
-	char			m_Buffer[OVERLAPPED_BUFIZE];	// Send/Recv 버퍼
 	size_t			m_Data_Size;					// 처리해야하는 데이터의 양
+	char			m_Buffer[OVERLAPPED_BUFIZE];	// Send/Recv 버퍼
+
+	/// 예를들어 버퍼사이즈가 100인데, 사이즈가 60인 데이터가 동시에 두개 들어오면 100 / 20으로 나눠 들어오기 때문에, 60을 처리하고 40을 저장해둔 후, 다음 20 패킷과 같이 합쳐서 처리해야한다.
+	size_t			m_Processing_Packet_Size;						// 이전 오버랩드에서 받았던 패킷의 양
+	char			m_Processing_Packet_Buffer[MAX_PACKET_SIZE];	// 이전 오버랩드에서 받아온 데이터정보.
+
 	/// Big Data가 올 경우 처리된 패킷의 사이즈를 기록하기 위한 용도.
 	size_t			m_Processed_Packet_Size;
 };
@@ -121,7 +128,7 @@ struct C2S_Packet : public Packet_Header
 	}
 
 	// 서버로 보낼 데이터를 담을 Packet_Buffer 로 구성되어있음.
-	char Packet_Buffer[PACKET_BUFIZE] = { 0, };
+	char Packet_Buffer[MAX_PACKET_SIZE] = { 0, };
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -149,7 +156,7 @@ struct S2C_Packet : public Packet_Header
 	// 클라이언트 IP/Port 정보 및 데이터를 담을 Packet_Buffer 로 구성되어있음.
 	char			Client_IP[IP_SIZE]					= { 0, };
 	unsigned short	Client_Port							= 0;
-	char			Packet_Buffer[PACKET_BUFIZE]		= { 0, };
+	char			Packet_Buffer[MAX_PACKET_SIZE]		= { 0, };
 };
 
 /// 1바이트 정렬 끝.

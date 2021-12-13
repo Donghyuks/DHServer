@@ -17,7 +17,7 @@ public:
 	static unsigned short	MAX_USER_COUNT;
 
 private:
-	unsigned short			PORT = 9000;
+	unsigned short			PORT = 729;
 
 	/// Overlapped IO 를 미리 생성하고 쓰기 위함.
 	ObjectPool<Overlapped_Struct>* Available_Overlapped;	// 사용가능한 오버랩드
@@ -102,6 +102,8 @@ private:
 	bool SendTargetSocket(SOCKET socket, Packet_Header* psPacket);
 	// 모든 소켓에 메세지를 보내는 함수.
 	bool BroadCastMessage(Packet_Header* psPacket);
+	// Overlapped에 이전에 들어온 데이터를 백업하고 초기화하는 함수.
+	bool BackUp_Overlapped(Overlapped_Struct* psOverlapped);
 	// 큰 데이터가 들어올 때 추가하는 함수.
 	bool BigData_Init(Big_Data_Find_Map::accessor& _Accessor, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct);
 	// 하나의 데이터를 받아오면 수신큐에 넣는 부분.
