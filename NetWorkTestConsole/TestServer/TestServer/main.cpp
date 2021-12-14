@@ -5,6 +5,9 @@ int main()
 {
 	std::vector<Network_Message> Msg_Vec;
 
+	/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
+	char* Msg_Buff = new char[MAX_PACKET_SIZE];
+
 	std::string Test_Server_Msg("[Server Effective Data]");
 	S2C_Packet* _Server_Msg = new S2C_Packet;
 	strcpy_s(_Server_Msg->Packet_Buffer, Test_Server_Msg.c_str());
@@ -29,13 +32,10 @@ int main()
 				{
 				case C2S_Packet_Type_Message:         // 채팅 메세지
 				{
-					/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
-					char* Msg_Buff = new char[MAX_PACKET_SIZE];
 					memcpy_s(Msg_Buff, MAX_PACKET_SIZE, C2S_Msg->Packet_Buffer, C2S_Msg->Packet_Size);
 
 					// 특정 쓰레드에 메세지 보내기
-					my_NetWork->Send(_Server_Msg, Msg_Packet.Socket);
-
+					//my_NetWork->Send(_Server_Msg, Msg_Packet.Socket);
 
 					//printf_s(Msg_Buff);
 					//printf_s("\n");
@@ -45,7 +45,7 @@ int main()
 			}
 
 			// Broad Cast
-			//my_NetWork->Send(_Server_Msg);
+			my_NetWork->Send(_Server_Msg);
 
 			Msg_Vec.clear();
 		}

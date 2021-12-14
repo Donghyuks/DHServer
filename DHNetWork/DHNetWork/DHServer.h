@@ -19,8 +19,10 @@ public:
 private:
 	unsigned short			PORT = 729;
 
-	// Overlapped IO 를 미리 생성하고 쓰기 위함.
+	// Overlapped IO 를 미리 생성하고 쓰기 위함. (오버랩드 풀)
 	ObjectPool<Overlapped_Struct>* Available_Overlapped;	// 사용가능한 오버랩드
+	// 메모리풀 생성.
+	MemoryPool m_MemoryPool;
 
 	// Recv시 데이터를 큐에 넣어두고 관리한다.
 	tbb::concurrent_queue<Network_Message*> Recv_Data_Queue;

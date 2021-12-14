@@ -27,6 +27,7 @@ private:
 
 	/// 임의로 보낼 데이터
 	std::string Test_Send_Msg = "[Client] BoundlessSend";
+	std::string Test_Send_End_Msg = "[Client] Send_And_End";
 
 private:
 	DHKeyIO* Key_IO = nullptr;

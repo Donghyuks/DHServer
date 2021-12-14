@@ -4,7 +4,7 @@
 #define TOTAL_OVERLAPPED_COUNT			2000	// 총 오버랩드 개수.
 #define CLIENT_THREAD_COUNT				1		// 클라이언트의 쓰레드 개수 (클라이언트의 쓰레드는 웬만하면.. 1개여도 충분!)
 #define CLIENT_IOCP_THREAD_COUNT		2		// 클라이언트의 IOCP 쓰레드 개수
-#define CLIENT_OVERLAPPED_COUNT			100		// 클라이언트의 IOCP 쓰레드 개수
+#define CLIENT_OVERLAPPED_COUNT			1000	// 클라이언트의 IOCP 쓰레드 개수
 
 /// BUFSIZE
 #define OVERLAPPED_BUFIZE		2048

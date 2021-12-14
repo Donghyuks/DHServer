@@ -174,18 +174,22 @@ BOOL DHServer::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 	}
 	else
 	{
+		// 받은 패킷을 복사해서 Send 큐에 넣음.
+		size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
+		Packet_Header* Copy_Packet = reinterpret_cast<Packet_Header*>(malloc(Send_Packet_Total_Size));
+		memcpy_s(Copy_Packet, Send_Packet_Total_Size, Send_Packet, Send_Packet_Total_Size);
+
 		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
 		Client_Map::const_accessor m_Accessor;
 
 		// 해당 소켓에 해당하는 클라이언트가 접속해 있는가?
 		if (g_Connected_Client.find(m_Accessor, _Socket) == false)
 		{
-			delete Send_Packet;
 			m_Accessor.release();
 			return LOGIC_FAIL;
 		}
 
-		Send_Data_Queue.push({ m_Accessor->second->m_Socket , Send_Packet });
+		Send_Data_Queue.push({ m_Accessor->second->m_Socket , Copy_Packet });
 
 		// 해당 자료에 대한 lock 해제.
 		m_Accessor.release();
@@ -199,24 +203,25 @@ BOOL DHServer::Recv(std::vector<Network_Message>& _Message_Vec)
 {
 	// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
-		return FALSE;
+		return LOGIC_FAIL;
+
+	// 큐에서 데이터를 빼온다.
+	Network_Message* _Net_Msg = nullptr;
 
 	// 큐에 저장되어있는 모든 메세지를 담아서 반환.
 	while (!Recv_Data_Queue.empty())
 	{
-		// 큐에서 데이터를 빼온다.
-		Network_Message* _Net_Msg = nullptr;
 		Recv_Data_Queue.try_pop(_Net_Msg);
-
 		// 빼온 데이터를 넣어서 보냄.
 		_Message_Vec.push_back(*_Net_Msg);
 
 		// 해제.
+		delete _Net_Msg->Packet;
 		delete _Net_Msg;
 	}
 
 	// 큐에 데이터를 다 빼면 TRUE 반환.
-	return TRUE;
+	return LOGIC_SUCCESS;
 }
 
 BOOL DHServer::Disconnect(SOCKET _Socket)
@@ -224,17 +229,6 @@ BOOL DHServer::Disconnect(SOCKET _Socket)
 	// 해당 소켓이 존재하는지 먼저 검사.
 	assert(_Socket != INVALID_SOCKET);
 	assert(FindSocketOnClient(_Socket));
-
-	std::pair<const SOCKET, Socket_Struct*> _itr;
-
-	// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
-	Client_Map::accessor m_Accessor;
-
-	// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
-	while (!g_Connected_Client.find(m_Accessor, _itr.first)) {};
-
-	// 해당 자료에 대한 lock 해제.
-	m_Accessor.release();
 
 	// 클라이언트 종료
 	Delete_in_Socket_List(_Socket);
@@ -260,6 +254,10 @@ BOOL DHServer::End()
 	}
 
 	g_Work_Thread.clear();
+
+	// Send/Recv 큐 초기화.
+	Recv_Data_Queue.clear();
+	Send_Data_Queue.clear();
 
 	// IOCP 종료
 	CloseHandle(g_IOCP);
@@ -361,6 +359,10 @@ void DHServer::WorkThread()
 		{
 			/// WSARead() / WSAWrite() 등에 사용된 Overlapped 데이터를 가져온다.
 			psOverlapped = reinterpret_cast<Overlapped_Struct*>(Entry_Data[i].lpOverlapped);
+			/// Key값으로 넘겨줬었던 Socket_Struct 데이터.
+			psSocket = reinterpret_cast<Socket_Struct*>(Entry_Data[i].lpCompletionKey);
+			/// I/O에 사용된 데이터의 크기.
+			*dwNumberOfBytesTransferred = Entry_Data[i].dwNumberOfBytesTransferred;
 
 			if (!psOverlapped)
 			{
@@ -378,6 +380,8 @@ void DHServer::WorkThread()
 			{
 				// Overlapped 는 내부에서 AcceptEx를 걸때 재사용하게된다.
 				IOFunction_Disconnect(psOverlapped);
+				// 소켓구조체를 이제 사용가능한 상태로 바꿔준다.
+				psSocket->Is_Available = true;
 				continue;	
 			}
 			// Accept() 의 Overlapped I/O 완료에 대한 처리
@@ -387,11 +391,6 @@ void DHServer::WorkThread()
 				continue; 
 			}
 			}
-
-			/// I/O에 사용된 데이터의 크기.
-			*dwNumberOfBytesTransferred = Entry_Data[i].dwNumberOfBytesTransferred;
-			/// Key값으로 넘겨줬었던 Socket_Struct 데이터.
-			psSocket = reinterpret_cast<Socket_Struct*>(Entry_Data[i].lpCompletionKey);
 
 			// 키가 nullptr 일 경우..
 			if (!psSocket)
@@ -407,6 +406,13 @@ void DHServer::WorkThread()
 				SOCKET _Socket_Data = psSocket->m_Socket;
 				Delete_in_Socket_List(_Socket_Data);
 				Reuse_Socket(_Socket_Data);
+				Available_Overlapped->ResetObject(psOverlapped);
+				continue;
+			}
+
+			// 현재 소켓에 대한 재사용이 진행중인경우 해당 오버랩드의 데이터를 폐기한다.
+			if (!psSocket->Is_Available)
+			{
 				Available_Overlapped->ResetObject(psOverlapped);
 				continue;
 			}
@@ -490,15 +496,13 @@ void DHServer::SendThread()
 					Buff_Offset++;
 
 					// WSABUF 셋팅
-					WSABUF wsaBuffer;
-					wsaBuffer.buf = psOverlapped->m_Buffer;
-					wsaBuffer.len = psOverlapped->m_Data_Size;
+					psOverlapped->m_WSABUF.len = psOverlapped->m_Data_Size;
 
 					// WSASend() 오버랩드 걸기
 					DWORD dwNumberOfBytesSent = 0;
 
 					int iResult = WSASend(psOverlapped->m_Socket,
-						&wsaBuffer,
+						&psOverlapped->m_WSABUF,
 						1,
 						&dwNumberOfBytesSent,
 						0,
@@ -513,13 +517,14 @@ void DHServer::SendThread()
 						_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 서버] [SendThread] 에러 발생 -- WSASend() :"));
 						err_display(szBuffer);
 
-						// 현재 패킷에 대한 해제를 진행 한 후, 오버랩드를 재사용 한다.
-						delete Send_Packet.second;
+						// 현재의 오버랩드를 재사용 한다.
 						Available_Overlapped->ResetObject(psOverlapped);
 						break;
 					}
 
 				}
+				// 다 처리한 데이터 해제.
+				delete Send_Packet.second;
 				// 해당 자료에 대한 lock 해제.
 				m_Accessor.release();
 			}
@@ -533,33 +538,18 @@ bool DHServer::AddClientSocket(Socket_Struct* psSocket)
 {
 	assert(nullptr != psSocket);
 
-	// 임계 영역
+	// 클라이언트 중복 검사
+
+	if (!FindSocketOnClient(psSocket->m_Socket))
 	{
-		// 클라이언트 중복 검사
-		for (auto it : g_Connected_Client)
-		{
-			{
-				// const_accessor로 불필요한 락은 막음. (참조만 할때)
-				Client_Map::const_accessor m_Accessor;
-
-				while (!g_Connected_Client.find(m_Accessor, it.first)) {};
-
-				if (m_Accessor->second == psSocket)
-				{
-					m_Accessor.release();
-					return FALSE;
-				}
-
-				m_Accessor.release();
-			}
-		}
-
 		// 중복이 아니라면 연결된 클라이언트 리스트로 등록.
 		g_Connected_Client.insert({ psSocket->m_Socket, psSocket });
+		return LOGIC_SUCCESS;
 	}
-
-
-	return TRUE;
+	else
+	{
+		return LOGIC_FAIL;
+	}
 }
 
 void DHServer::Reuse_Socket(SOCKET _Socket)
@@ -597,29 +587,20 @@ void DHServer::Delete_in_Socket_List(SOCKET _Socket)
 		return;
 	}
 
-	for (auto it : g_Connected_Client)
-	{
-		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
-		Client_Map::accessor m_Connect_Client_Acc;
+	// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
+	Client_Map::accessor m_Connect_Client_Acc;
 
-		// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
-		while (!g_Connected_Client.find(m_Connect_Client_Acc, it.first)) {};
+	// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
+	while (!g_Connected_Client.find(m_Connect_Client_Acc, _Socket)) {};
 
-		// 해당하는 포인터를 찾는다.
-		if (m_Connect_Client_Acc->second == m_Socket_Struct_Acc->second)
-		{
-			// 해당하는 클라이언트 소켓을 리스트에서 삭제.
-			g_Connected_Client.erase(m_Connect_Client_Acc);
-			m_Connect_Client_Acc.release();
-			break;
-		}
-
-		m_Connect_Client_Acc.release();
-	}
+	// 해당하는 클라이언트 소켓을 리스트에서 삭제.
+	g_Connected_Client.erase(m_Connect_Client_Acc);
+	m_Connect_Client_Acc.release();
 
 	std::string Socket_IP(m_Socket_Struct_Acc->second->IP);
 	auto Socket_PORT = m_Socket_Struct_Acc->second->PORT;
 	int Socket_Number = m_Socket_Struct_Acc->second->m_Socket;
+	m_Socket_Struct_Acc->second->Is_Available = false;
 
 	m_Socket_Struct_Acc.release();
 
@@ -642,15 +623,13 @@ bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 	psOverlapped->m_Socket = socket;
 
 	// WSABUF 셋팅
-	WSABUF wsaBuffer;
-	wsaBuffer.buf = psOverlapped->m_Buffer;
-	wsaBuffer.len = sizeof(psOverlapped->m_Buffer);
+	psOverlapped->m_WSABUF.len = sizeof(psOverlapped->m_Buffer);
 
 	// WSARecv() 오버랩드 걸기
 	DWORD dwNumberOfBytesRecvd = 0, dwFlag = 0;
 
 	int iResult = WSARecv(psOverlapped->m_Socket,
-		&wsaBuffer,
+		&psOverlapped->m_WSABUF,
 		1,
 		&dwNumberOfBytesRecvd,
 		&dwFlag,
@@ -674,21 +653,26 @@ bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 
 bool DHServer::BroadCastMessage(Packet_Header* Send_Packet)
 {
+	size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
+
 	// 전체 클라이언트 소켓에 패킷 송신
 	for (auto itr : g_Connected_Client)
 	{
+		// 받은 패킷을 복사해서 Send 큐에 넣음.
+		Packet_Header* Copy_Packet = reinterpret_cast<Packet_Header*>(malloc(Send_Packet_Total_Size));
+		memcpy_s(Copy_Packet, Send_Packet_Total_Size, Send_Packet, Send_Packet_Total_Size);
+
 		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
 		Client_Map::const_accessor m_Accessor;
 
 		// 해당 소켓에 해당하는 클라이언트가 접속해 있는가?
 		if (g_Connected_Client.find(m_Accessor, itr.first) == false)
 		{
-			delete Send_Packet;
 			m_Accessor.release();
 			return LOGIC_FAIL;
 		}
 
-		Send_Data_Queue.push({ m_Accessor->first , Send_Packet });
+		Send_Data_Queue.push({ m_Accessor->first , Copy_Packet });
 
 		// 해당 자료에 대한 lock 해제.
 		m_Accessor.release();
@@ -849,7 +833,7 @@ void DHServer::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 {
 	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
 
-	delete psOverlapped;
+	Available_Overlapped->ResetObject(psOverlapped);
 }
 
 void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
@@ -862,7 +846,6 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 		SOCKET _Socket_Data = psOverlapped->m_Socket;
 		Reuse_Socket(_Socket_Data);
 		Available_Overlapped->ResetObject(psOverlapped);
-
 		return;
 	}
 
@@ -917,6 +900,9 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 		Reuse_Socket(_Socket_Data);
 		Available_Overlapped->ResetObject(psOverlapped);
 	}
+
+	// 소켓구조체를 이제 사용가능한 상태로 바꿔준다.
+	psSocket->Is_Available = true;
 }
 
 void DHServer::IOFunction_Disconnect(Overlapped_Struct* psOverlapped)

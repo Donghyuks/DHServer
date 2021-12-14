@@ -43,6 +43,7 @@ struct Socket_Struct
 	{
 		// Placement new 를 사용하기 위해 생성자에서 m_Socket 초기화.
 		m_Socket = INVALID_SOCKET;
+		Is_Available = false;
 	}
 
 	~Socket_Struct()
@@ -58,6 +59,7 @@ struct Socket_Struct
 	SOCKET m_Socket;			// 연결된 소켓
 	std::string IP;				// 연결 된 곳의 IP
 	unsigned short PORT = 0;	// 연결 된 곳의 PORT
+	bool Is_Available;			// 현재 사용가능한 상태인가?
 };
 
 // 기본 오버랩드인 WSAOVERLAPPED 를 상속받는 Overlapped Struct
@@ -76,6 +78,13 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 		m_Data_Size = 0;
 		m_Processing_Packet_Size = 0;
 		m_Processed_Packet_Size = 0;
+		m_WSABUF.buf = m_Buffer;
+		m_WSABUF.len = 0;
+	}
+	~Overlapped_Struct()
+	{
+		ZeroMemory(m_Buffer, sizeof(m_Buffer));
+		ZeroMemory(m_Processing_Packet_Buffer, sizeof(m_Processing_Packet_Buffer));
 	}
 
 	/// Overlapped I/O의 작업 종류.
@@ -91,6 +100,7 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 
 	IOType			m_IOType;						// 처리결과를 통보받은 후 작업을 구분하기 위해.
 	SOCKET			m_Socket;						// 오버랩드의 대상이되는 소켓
+	WSABUF			m_WSABUF;						// WSAbuffer의 중복 생성을 막기위해 한 오버랩드에 하나의 버퍼를 할당해둔다.
 	size_t			m_Data_Size;					// 처리해야하는 데이터의 양
 	char			m_Buffer[OVERLAPPED_BUFIZE];	// Send/Recv 버퍼
 

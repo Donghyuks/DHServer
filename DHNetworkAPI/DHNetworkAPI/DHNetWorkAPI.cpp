@@ -8,7 +8,7 @@ DHNetWorkAPI::DHNetWorkAPI()
 
 DHNetWorkAPI::~DHNetWorkAPI()
 {
-	delete Set_NetWork;
+	End();
 }
 
 BOOL DHNetWorkAPI::Recv(std::vector<Network_Message>& _Message_Vec)
@@ -53,8 +53,5 @@ BOOL DHNetWorkAPI::Disconnect(SOCKET _Socket)
 
 BOOL DHNetWorkAPI::End()
 {
-	Set_NetWork->End();
-	this->~DHNetWorkAPI();
-
-	return true;
+	return Set_NetWork->End();
 }

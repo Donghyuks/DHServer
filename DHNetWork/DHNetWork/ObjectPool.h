@@ -78,6 +78,11 @@ ObjectPool<T>::ObjectPool(int _Sample_Obj_Count /*= 2000*/)
 template<class T>
 ObjectPool<T>::~ObjectPool()
 {
-
+	while (!m_Obj_Queue.empty())
+	{
+		T* My_Object = nullptr;
+		m_Obj_Queue.try_pop(My_Object);
+		delete My_Object;
+	}
 }
 

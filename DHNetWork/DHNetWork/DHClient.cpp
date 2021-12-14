@@ -11,7 +11,7 @@ DHClient::DHClient()
 	g_Server_Socket = std::make_shared<Socket_Struct>();
 
 	/// IOCP를 생성한다.
-	g_IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
+	g_IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, CLIENT_IOCP_THREAD_COUNT);
 	assert(nullptr != g_IOCP);
 
 	/// 사용가능한 Overlapped를 생성해둔다. (100개로 생성해둠)
@@ -23,9 +23,7 @@ DHClient::DHClient()
 
 DHClient::~DHClient()
 {
-	/// 클라이언트가 종료될 때 같이 CS도 해제.
-	DeleteCriticalSection(&g_CCS);
-	g_Server_Socket.reset();
+	End();
 }
 
 BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKET*/)
@@ -43,34 +41,40 @@ BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 		return LOGIC_FAIL;
 	}
 
+	// 받은 패킷을 복사해서 Send 큐에 넣음.
+	size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
+	Packet_Header* Copy_Packet = reinterpret_cast<Packet_Header*>(malloc(Send_Packet_Total_Size));
+	memcpy_s(Copy_Packet, Send_Packet_Total_Size, Send_Packet, Send_Packet_Total_Size);
+
 	// 보낼 메세지를 큐에 넣어서 한번에 보냄 ( 최대한 효율적으로 자원을 사용하기 위해 )
-	Send_Data_Queue.push(Send_Packet);
+	Send_Data_Queue.push(Copy_Packet);
 
 	return LOGIC_SUCCESS;
 }
 
 BOOL DHClient::Recv(std::vector<Network_Message>& _Message_Vec)
 {
-	/// 큐가 비었으면 FALSE를 반환한다.
+	// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
-		return FALSE;
+		return LOGIC_FAIL;
 
-	/// 큐에 저장되어있는 모든 메세지를 담아서 반환.
+	// 큐에서 데이터를 빼온다.
+	Network_Message* _Net_Msg = nullptr;
+
+	// 큐에 저장되어있는 모든 메세지를 담아서 반환.
 	while (!Recv_Data_Queue.empty())
 	{
-		/// 큐에서 데이터를 빼온다.
-		Network_Message* _Net_Msg = nullptr;
 		Recv_Data_Queue.try_pop(_Net_Msg);
-
-		/// 빼온 데이터를 넣어서 보냄.
+		// 빼온 데이터를 넣어서 보냄.
 		_Message_Vec.push_back(*_Net_Msg);
 
 		// 해제.
+		delete _Net_Msg->Packet;
 		delete _Net_Msg;
 	}
 
-	/// 큐에 데이터를 다 빼면 TRUE 반환.
-	return TRUE;
+	// 큐에 데이터를 다 빼면 TRUE 반환.
+	return LOGIC_SUCCESS;
 }
 
 BOOL DHClient::Connect(unsigned short _Port, std::string _IP)
@@ -99,9 +103,25 @@ BOOL DHClient::End()
 	for (auto k : g_Work_Thread)
 	{
 		k->join();
+		delete k;
 	}
 
 	g_Work_Thread.clear();
+
+	// Send/Recv 큐 초기화.
+	while (!Recv_Data_Queue.empty())
+	{
+		Network_Message* _Msg = nullptr;
+		Recv_Data_Queue.try_pop(_Msg);
+		delete _Msg->Packet;
+		delete _Msg;
+	}
+	while (!Send_Data_Queue.empty())
+	{
+		Packet_Header* _Packet_Data = nullptr;
+		Send_Data_Queue.try_pop(_Packet_Data);
+		delete _Packet_Data;
+	}
 
 	// IOCP 종료
 	CloseHandle(g_IOCP);
@@ -113,6 +133,10 @@ BOOL DHClient::End()
 
 	// 오버랩드 종료
 	delete Available_Overlapped;
+
+	/// 클라이언트가 종료될 때 같이 CS도 해제.
+	DeleteCriticalSection(&g_CCS);
+	g_Server_Socket.reset();
 
 	printf_s("[TCP 클라이언트] 종료\n");
 
@@ -288,7 +312,7 @@ void DHClient::ConnectSendThread()
 		}
 
 		/// 소켓을 IOCP 에 키 값과 함께 등록
-		if (CreateIoCompletionPort(reinterpret_cast<HANDLE>(g_Server_Socket->m_Socket), g_IOCP, reinterpret_cast<ULONG_PTR>(g_Server_Socket.get()), CLIENT_IOCP_THREAD_COUNT) != g_IOCP)
+		if (CreateIoCompletionPort(reinterpret_cast<HANDLE>(g_Server_Socket->m_Socket), g_IOCP, reinterpret_cast<ULONG_PTR>(g_Server_Socket.get()), 0) != g_IOCP)
 		{
 			/// 만약 등록에 실패한다면 소켓 종료.
 			Safe_CloseSocket();
@@ -362,15 +386,13 @@ void DHClient::SendFunction()
 			Buff_Offset++;
 
 			// WSABUF 셋팅
-			WSABUF wsaBuffer;
-			wsaBuffer.buf = psOverlapped->m_Buffer;
-			wsaBuffer.len = psOverlapped->m_Data_Size;
+			psOverlapped->m_WSABUF.len = psOverlapped->m_Data_Size;
 
 			// WSASend() 오버랩드 걸기
 			DWORD dwNumberOfBytesSent = 0;
 
 			int iResult = WSASend(psOverlapped->m_Socket,
-				&wsaBuffer,
+				&psOverlapped->m_WSABUF,
 				1,
 				&dwNumberOfBytesSent,
 				0,
@@ -389,6 +411,8 @@ void DHClient::SendFunction()
 			}
 
 		}
+		// 다 처리한 데이터 해제.
+		delete Send_Packet;
 	}
 
 	// 보낼 메세지가 없을때는 다른 쓰레드에게 점유권을 넘겨줌.
@@ -457,15 +481,13 @@ bool DHClient::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 	psOverlapped->m_Socket = socket;
 
 	// WSABUF 셋팅
-	WSABUF wsaBuffer;
-	wsaBuffer.buf = psOverlapped->m_Buffer;
-	wsaBuffer.len = sizeof(psOverlapped->m_Buffer);
+	psOverlapped->m_WSABUF.len = sizeof(psOverlapped->m_Buffer);
 
 	// WSARecv() 오버랩드 걸기
 	DWORD dwNumberOfBytesRecvd = 0, dwFlag = 0;
 
 	int iResult = WSARecv(psOverlapped->m_Socket,
-		&wsaBuffer,
+		&psOverlapped->m_WSABUF,
 		1,
 		&dwNumberOfBytesRecvd,
 		&dwFlag,

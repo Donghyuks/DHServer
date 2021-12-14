@@ -49,9 +49,9 @@ int DummyClient::GetCoreCount()
 
 DummyClient::DummyClient()
 {
-	// 만들 쓰레드 개수는 적절하게.. 10개정도로
+	// 만들 쓰레드 개수는 적절하게.. 5개정도로
 	//Make_Thread_Count = (GetCoreCount() - 1) * 2;	// 컴퓨터 코어 개수만큼 생성
-	Make_Thread_Count = 10;
+	Make_Thread_Count = 5;
 
 	Key_IO = new DHKeyIO;
 	Logger = new DHLogger(_T("DummyClient"));
@@ -111,14 +111,14 @@ void DummyClient::StartCase2()
 	// 현재 테스트케이스는 2번이라고 저장.
 	Current_TestCase = TestCaseNumber::Case2;
 
-	for (int i = 0; i < Make_Thread_Count / 10; i++)
+	for (int i = 0; i < Make_Thread_Count / 5; i++)
 	{
 		// 무한히 보내는 쓰레드는 총 쓰레드의 10분의 1만큼 생성.
 		std::thread* _Send_Thread = new std::thread(std::bind(&DummyClient::BoundlessEndFunction, this));
 		Thread_List.push_back(_Send_Thread);
 	}
 
-	for (int i = 0; i < (Make_Thread_Count - (Make_Thread_Count / 10)); i++)
+	for (int i = 0; i < (Make_Thread_Count - (Make_Thread_Count / 5)); i++)
 	{
 		// 무한히 접속후 종료만 하는 쓰레드 10분의 9만큼 생성.
 		std::thread* _End_Thread = new std::thread(std::bind(&DummyClient::BoundlessSendFunction, this));
@@ -154,11 +154,8 @@ void DummyClient::StartCase3()
 
 void DummyClient::BoundlessSendFunction()
 {
-	C2S_Packet* _msg = new C2S_Packet;
-	std::vector<Network_Message*> Message_Vec;
-	strcpy_s(_msg->Packet_Buffer, Test_Send_Msg.c_str());
-	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
-	_msg->Packet_Size = Test_Send_Msg.size()+1;
+	// Recv 버퍼 비우기용..
+	std::vector<Network_Message> Msg_Vec;
 	DHNetWorkAPI* my_NetWork = nullptr;
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
@@ -169,30 +166,13 @@ void DummyClient::BoundlessSendFunction()
 
 	while (!End_Flag)
 	{
-		std::vector<Network_Message> Msg_Vec;
+		C2S_Packet* _msg = new C2S_Packet;
+		strcpy_s(_msg->Packet_Buffer, Test_Send_Msg.c_str());
+		_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+		_msg->Packet_Size = Test_Send_Msg.size() + 1;
 
-		if (my_NetWork->Recv(Msg_Vec))
-		{
-			for (auto Msg_Packet : Msg_Vec)
-			{
-				SOCKET _Recv_Socket_Num = Msg_Packet.Socket;
-				S2C_Packet* S2C_Msg = static_cast<S2C_Packet*>(Msg_Packet.Packet);
-
-				switch (S2C_Msg->Packet_Type)
-				{
-				case S2C_Packet_Type_Message:         // 채팅 메세지
-				{
-					/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
-					char* Msg_Buff = new char[MAX_PACKET_SIZE];
-					memcpy_s(Msg_Buff, MAX_PACKET_SIZE, S2C_Msg->Packet_Buffer, S2C_Msg->Packet_Size);
-
-					//printf_s(Msg_Buff);
-					//printf_s("\n");
-				}
-				break;
-				}
-			}
-		}
+		// 받은 메세지 버퍼 비우기..
+		my_NetWork->Recv(Msg_Vec);
 
 		/// Send 시간 측정.
 		_Start_Time = std::chrono::system_clock::now();
@@ -206,6 +186,8 @@ void DummyClient::BoundlessSendFunction()
 		Total_Count_1.fetch_add(1);
 		/// 1회 실행시 걸린 시간을 기록해둔다.
 		Total_Time_1.fetch_add(_Poceed_Time_Ms, std::memory_order_relaxed);
+
+		delete _msg;
 
 		/// 너무 많이보내면 결과확인이 어려워서.. sleep 100만큼 준다. 결과자체는 유의미함.
 		Sleep(100);
@@ -221,11 +203,6 @@ void DummyClient::BoundlessSendFunction()
 
 void DummyClient::BoundlessEndFunction()
 {
-	C2S_Packet* _msg = new C2S_Packet;
-	std::vector<Network_Message*> Message_Vec;
-	strcpy_s(_msg->Packet_Buffer, std::string("TestClient").c_str());
-	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
-	_msg->Packet_Size = sizeof(std::string("TestClient").c_str());
 	DHNetWorkAPI* my_NetWork = nullptr;
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
@@ -242,7 +219,8 @@ void DummyClient::BoundlessEndFunction()
 		{
 			continue;
 		}
-		my_NetWork->End();
+
+		delete my_NetWork;
 
 		std::chrono::duration<double> _Proceed_Time = std::chrono::system_clock::now() - _Start_Time;
 		double _Poceed_Time_Ms = _Proceed_Time.count() * 1000;
@@ -267,15 +245,16 @@ void DummyClient::BoundlessEndFunction()
 
 void DummyClient::SendEndFunction()
 {
-	C2S_Packet* _msg = new C2S_Packet;
-	strcpy_s(_msg->Packet_Buffer, std::string("TestClient").c_str());
-	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
-	_msg->Packet_Size = sizeof(std::string("TestClient").c_str());
 	DHNetWorkAPI* my_NetWork = nullptr;
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
 	while (!End_Flag)
 	{
+		C2S_Packet* _msg = new C2S_Packet;
+		strcpy_s(_msg->Packet_Buffer, Test_Send_End_Msg.c_str());
+		_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+		_msg->Packet_Size = Test_Send_End_Msg.size() + 1;
+
 		if (my_NetWork == nullptr)
 		{
 			_Start_Time = std::chrono::system_clock::now();
@@ -287,10 +266,12 @@ void DummyClient::SendEndFunction()
 
 		if (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP))
 		{
+			delete _msg;
 			continue;
 		}
+
 		my_NetWork->Send(_msg);
-		my_NetWork->End();
+		delete my_NetWork;
 
 		std::chrono::duration<double> _Proceed_Time = std::chrono::system_clock::now() - _Start_Time;
 		double _Poceed_Time_Ms = _Proceed_Time.count() * 1000;
@@ -300,6 +281,7 @@ void DummyClient::SendEndFunction()
 		/// 1회 실행시 걸린 시간을 기록해둔다.
 		Total_Time.fetch_add(_Poceed_Time_Ms, std::memory_order_relaxed);
 
+		delete _msg;
 		my_NetWork = nullptr;
 		Sleep(0);
 	}
@@ -320,10 +302,11 @@ void DummyClient::SendVariousPacketFunction()
 
 	srand(distribution(generator));
 
-	C2S_Packet* _msg = new C2S_Packet;
-	std::vector<Network_Message*> Message_Vec;
+	// Recv 버퍼 비우기용..
+	std::vector<Network_Message> Msg_Vec;
+
+	// 랜덤한 데이터 보냄
 	std::string Random_Range_String = "";
-	_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
 
 	DHNetWorkAPI* my_NetWork = nullptr;
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
@@ -339,6 +322,8 @@ void DummyClient::SendVariousPacketFunction()
 		int Random_Number = rand() % 2200;
 		Random_Range_String.resize(Random_Number,'A');
 
+		C2S_Packet* _msg = new C2S_Packet;
+		_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
 		strcpy_s(_msg->Packet_Buffer, Random_Range_String.c_str());
 		_msg->Packet_Size = Random_Range_String.size() + 1;
 
@@ -354,6 +339,12 @@ void DummyClient::SendVariousPacketFunction()
 		Total_Count_1.fetch_add(1);
 		/// 1회 실행시 걸린 시간을 기록해둔다.
 		Total_Time_1.fetch_add(_Poceed_Time_Ms, std::memory_order_relaxed);
+
+		// 받은 메세지 버퍼 비우기..
+		my_NetWork->Recv(Msg_Vec);
+		
+		// 이번에 사용된 패킷 삭제.
+		delete _msg;
 
 		/// 너무 많이보내면 결과확인이 어려워서.. sleep 1000만큼 준다. 결과자체는 유의미함.
 		Sleep(500);
@@ -411,10 +402,10 @@ void DummyClient::StopAllThread()
 			// 케이스 2번에 대한 결과
 			printf("[DummyClient] CASE_%d 번 실행결과. [Thread : %d 개]\n", (int)Current_TestCase, Make_Thread_Count);
 
-			printf("[Send Thread : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n",
+			printf("[StartEnd Thread : % d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n",
 				Make_Thread_Count / 10, Total_Time_1.load(), Total_Count_1.load(), Total_Time_1 / (double)Total_Count_1);
 
-			printf("[StartEnd Thread : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n",
+			printf("[Send Thread : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n",
 				(Make_Thread_Count - (Make_Thread_Count / 10)), Total_Time_2.load(), Total_Count_2.load(), Total_Time_2 / (double)Total_Count_2);
 
 			_stprintf_s(Write_Result, _T("[DummyClient] CASE_%d 번 실행결과. [Thread : %d 개]\n[SendRecv Thread : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n[StartEnd Thread : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n"),

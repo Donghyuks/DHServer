@@ -10,12 +10,6 @@ class NetWorkBase
 {
 public:
 	NetWorkBase();
-	
-protected:
-	// 디버거 생성.
-	//DHDebugger m_Debugger;
-	// 메모리풀 생성.
-	MemoryPool m_MemoryPool;
 
 private:
 	// DisconnectEx를 사용할 함수포인터.
