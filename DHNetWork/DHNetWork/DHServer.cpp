@@ -4,7 +4,7 @@ unsigned short DHServer::MAX_USER_COUNT = 0;
 
 DHServer::DHServer()
 {
-	
+
 }
 
 DHServer::~DHServer()
@@ -83,9 +83,6 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 		return LOGIC_FAIL;
 	}
 
-	/// 클라이언트의 종료를 체크하기 위한 쓰레드 생성.
-	g_Exit_Check_Thread = new std::thread(std::bind(&DHServer::ExitThread, this));
-
 	printf_s("[TCP 서버] 시작\n");
 
 	DWORD dwByte;	/// 처리 Byte
@@ -149,6 +146,9 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 		g_Socket_Struct_Pool.insert({ psSocket->m_Socket , psSocket });
 	}
 
+	// Send 처리를 위한 쓰레드 생성
+	g_Send_Thread = new std::thread(std::bind(&DHServer::SendThread, this));
+
 	// 사용한 메모리 반환.
 	m_MemoryPool.ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
 
@@ -160,53 +160,62 @@ BOOL DHServer::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 	/// 모든 클라이언트에게 메세지를 보냄.
 	// 해당 소켓이 존재하지 않거나 패킷이 null 이면 에러.
 	assert(nullptr != Send_Packet);
-	assert(FindSocketOnClient(_Socket));
 
-	/// 만약 소켓이 설정되지 않았다면 모두에게 메세지를 보냄.
+	// 등록되지 않은 패킷은 전송할 수 없다.
+	if (S2C_Packet_Type_None <= Send_Packet->Packet_Type)
+	{
+		return LOGIC_FAIL;
+	}
+
+	// 만약 소켓이 설정되지 않았다면 모두에게 메세지를 보냄.
 	if (_Socket == INVALID_SOCKET)
 	{
-		BroadCastMessage(Send_Packet);
+		return BroadCastMessage(Send_Packet);
 	}
 	else
 	{
 		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
-		Client_Map::accessor m_Accessor;
+		Client_Map::const_accessor m_Accessor;
 
-		// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
-		while (!g_Connected_Client.find(m_Accessor, _Socket)) {};
+		// 해당 소켓에 해당하는 클라이언트가 접속해 있는가?
+		if (g_Connected_Client.find(m_Accessor, _Socket) == false)
+		{
+			delete Send_Packet;
+			m_Accessor.release();
+			return LOGIC_FAIL;
+		}
 
-		// 패킷 송신
-		SendTargetSocket(m_Accessor->second->m_Socket, Send_Packet);
+		Send_Data_Queue.push({ m_Accessor->second->m_Socket , Send_Packet });
 
 		// 해당 자료에 대한 lock 해제.
 		m_Accessor.release();
 	}
 
-	return true;
+	return LOGIC_SUCCESS;
 }
 
 
 BOOL DHServer::Recv(std::vector<Network_Message>& _Message_Vec)
 {
-	/// 큐가 비었으면 FALSE를 반환한다.
+	// 큐가 비었으면 FALSE를 반환한다.
 	if (Recv_Data_Queue.empty())
 		return FALSE;
 
-	/// 큐에 저장되어있는 모든 메세지를 담아서 반환.
+	// 큐에 저장되어있는 모든 메세지를 담아서 반환.
 	while (!Recv_Data_Queue.empty())
 	{
-		/// 큐에서 데이터를 빼온다.
+		// 큐에서 데이터를 빼온다.
 		Network_Message* _Net_Msg = nullptr;
 		Recv_Data_Queue.try_pop(_Net_Msg);
 
-		/// 빼온 데이터를 넣어서 보냄.
+		// 빼온 데이터를 넣어서 보냄.
 		_Message_Vec.push_back(*_Net_Msg);
-	
+
 		// 해제.
 		delete _Net_Msg;
 	}
 
-	/// 큐에 데이터를 다 빼면 TRUE 반환.
+	// 큐에 데이터를 다 빼면 TRUE 반환.
 	return TRUE;
 }
 
@@ -228,7 +237,7 @@ BOOL DHServer::Disconnect(SOCKET _Socket)
 	m_Accessor.release();
 
 	// 클라이언트 종료
-	Delete_in_Socket_List(_itr.second);
+	Delete_in_Socket_List(_Socket);
 	// 해당 소켓을 종료하고 재사용함.
 	Reuse_Socket(_Socket);
 
@@ -240,6 +249,8 @@ BOOL DHServer::End()
 	/// 이미 외부에서 초기화를 호출한적이 있다면 그냥 리턴. ( End()호출을 안했을경우 소멸자에서 자동으로 해주도록 하기위함. )
 	if (g_IOCP == nullptr)
 		return LOGIC_FAIL;
+
+	g_Is_Exit = true;
 
 	PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
 
@@ -269,6 +280,9 @@ BOOL DHServer::End()
 		m_Accessor.release();
 	}
 
+	// 사용한 풀 삭제
+	delete Available_Overlapped;
+
 	// 윈속 종료
 	WSACleanup();
 
@@ -281,7 +295,8 @@ void DHServer::CreateWorkThread()
 {
 	SYSTEM_INFO SystemInfo;
 	GetSystemInfo(&SystemInfo);
-	int iThreadCount = SystemInfo.dwNumberOfProcessors * 2;
+	// Send Thread 를 따로 둬야하므로 CPU 코어 하나는 남겨둔다.
+	int iThreadCount = (SystemInfo.dwNumberOfProcessors - 1) * 2;
 
 	for (int i = 0; i < iThreadCount; i++)
 	{
@@ -337,9 +352,7 @@ void DHServer::WorkThread()
 		// 오버랩드 결과 체크
 		if (!bSuccessed)
 		{
-			printf_s("[TCP 서버] 오버랩드 결과를 체크하는 도중 서버와 연결이 끊겼습니다.\n");
-			delete psSocket;
-			delete psOverlapped;
+			printf_s("[TCP 서버] [WorkThread] 오버랩드 결과를 체크하는 도중 서버와 연결이 끊겼습니다.\n");
 			continue;
 		}
 
@@ -351,43 +364,48 @@ void DHServer::WorkThread()
 
 			if (!psOverlapped)
 			{
-				// 다른 WorkerThread() 들의 종료를 위해서
+				// Overlapped 가 0 이라는 것은 서버의 종료를 알린다.(혹시 모르니 메세지를 남겨 놓자..)
+				printf_s("[TCP 서버] [WorkThread] Overlapped 가 NULL 입니다.\n");
 				PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
-				break;
+				return;
 			}
 
 			/// 만약 Disconnect 메세지가 왔다면.
 			switch (psOverlapped->m_IOType)
 			{
+			// Disconnect() 의 Overlapped I/O 완료에 대한 처리
 			case Overlapped_Struct::IOType::IOType_Disconnect:
 			{
 				// Overlapped 는 내부에서 AcceptEx를 걸때 재사용하게된다.
 				IOFunction_Disconnect(psOverlapped);
-				continue;	// Disconnect() 의 Overlapped I/O 완료에 대한 처리
+				continue;	
 			}
-			case Overlapped_Struct::IOType::IOType_Accept: IOFunction_Accept(psOverlapped); continue; // Accept() 의 Overlapped I/O 완료에 대한 처리
+			// Accept() 의 Overlapped I/O 완료에 대한 처리
+			case Overlapped_Struct::IOType::IOType_Accept: 
+			{
+				IOFunction_Accept(psOverlapped);
+				continue; 
+			}
+			}
 
-			}
 			/// I/O에 사용된 데이터의 크기.
 			*dwNumberOfBytesTransferred = Entry_Data[i].dwNumberOfBytesTransferred;
 			/// Key값으로 넘겨줬었던 Socket_Struct 데이터.
 			psSocket = reinterpret_cast<Socket_Struct*>(Entry_Data[i].lpCompletionKey);
 
-			// 키가 nullptr 일 경우 쓰레드 종료를 의미
+			// 키가 nullptr 일 경우..
 			if (!psSocket)
 			{
-				// 다른 WorkerThread() 들의 종료를 위해서
-				PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
-				break;
+				assert(false);
+				printf_s("[TCP 서버] [WorkThread] Key(Socket) 가 NULL 입니다.\n");
+				continue;
 			}
 
-			assert(nullptr != psOverlapped);
-
-			// 연결 종료
+			// 클라이언트 연결 종료
 			if (0 == *dwNumberOfBytesTransferred)
 			{
 				SOCKET _Socket_Data = psSocket->m_Socket;
-				Delete_in_Socket_List(psSocket);
+				Delete_in_Socket_List(_Socket_Data);
 				Reuse_Socket(_Socket_Data);
 				Available_Overlapped->ResetObject(psOverlapped);
 				continue;
@@ -408,6 +426,107 @@ void DHServer::WorkThread()
 	m_MemoryPool.ResetMemory(Get_Entry_Count, sizeof(ULONG));
 
 	return;
+}
+
+void DHServer::SendThread()
+{
+	// 보낼 패킷의 총 사이즈 (헤더 + 실제 버퍼에 들어있는 패킷 사이즈)
+	size_t Total_Packet_Size = 0;
+	// Buffer를 얼만큼 위치에서 잘라야하는지 나타내기위함.
+	size_t Buff_Offset = 0;
+	// 데이터를 Queue 에서 빼오기 위한 변수.
+	std::pair<SOCKET, Packet_Header*> Send_Packet;
+
+	while (!g_Is_Exit)
+	{
+		// 보낼 메세지에 있는 큐에서 데이터가 있는지 검사
+		while (!Send_Data_Queue.empty())
+		{
+			// 큐에서 보낼 데이터를 빼온다.
+			Send_Data_Queue.try_pop(Send_Packet);
+			
+			{
+				// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
+				Client_Map::accessor m_Accessor;
+
+				// 만약 참조가아닌 accessor를 불렀을때 false 면 소켓이 삭제되었거나 삭제되는 중임을 나타낸다.
+				if (g_Connected_Client.find(m_Accessor, Send_Packet.first) == false)
+				{
+					// 해당 패킷을 삭제.
+					delete Send_Packet.second;
+					m_Accessor.release();
+					continue;
+				}
+
+				// 초기 셋팅.
+				Buff_Offset = 0;
+				Total_Packet_Size = PACKET_HEADER_SIZE + Send_Packet.second->Packet_Size;
+
+				// 만약 패킷의 사이즈가 준비된 버퍼보다 크다면 잘라서 여러개로 보내준다.
+				while (Total_Packet_Size > 0)
+				{
+					// 오버랩드 셋팅
+					Overlapped_Struct* psOverlapped = Available_Overlapped->GetObject();
+					psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Send;
+					psOverlapped->m_Socket = Send_Packet.first;
+
+					// 패킷 복사
+					// 패킷이 아직 오버랩드 버퍼보다 사이즈가 큰 경우
+					if (Total_Packet_Size >= OVERLAPPED_BUFIZE)
+					{
+						psOverlapped->m_Data_Size = OVERLAPPED_BUFIZE;
+						Total_Packet_Size -= OVERLAPPED_BUFIZE;
+						memcpy_s(psOverlapped->m_Buffer, OVERLAPPED_BUFIZE, (char*)Send_Packet.second + (Buff_Offset * OVERLAPPED_BUFIZE), OVERLAPPED_BUFIZE);
+					}
+					// 오버랩드 버퍼보다 사이즈가 작은 경우
+					else
+					{
+						psOverlapped->m_Data_Size = Total_Packet_Size;
+						memcpy_s(psOverlapped->m_Buffer, OVERLAPPED_BUFIZE, (char*)Send_Packet.second + (Buff_Offset * OVERLAPPED_BUFIZE), Total_Packet_Size);
+						Total_Packet_Size = 0;
+					}
+
+
+					Buff_Offset++;
+
+					// WSABUF 셋팅
+					WSABUF wsaBuffer;
+					wsaBuffer.buf = psOverlapped->m_Buffer;
+					wsaBuffer.len = psOverlapped->m_Data_Size;
+
+					// WSASend() 오버랩드 걸기
+					DWORD dwNumberOfBytesSent = 0;
+
+					int iResult = WSASend(psOverlapped->m_Socket,
+						&wsaBuffer,
+						1,
+						&dwNumberOfBytesSent,
+						0,
+						psOverlapped,
+						nullptr);
+
+					// 유효하지 않은 소켓이 들어온 경우 ( 주로 10053 오류가 난다. => 소켓이 다른 쓰레드에서 삭제된 경우 )
+					if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
+					{
+						/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
+						TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
+						_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 서버] [SendThread] 에러 발생 -- WSASend() :"));
+						err_display(szBuffer);
+
+						// 현재 패킷에 대한 해제를 진행 한 후, 오버랩드를 재사용 한다.
+						delete Send_Packet.second;
+						Available_Overlapped->ResetObject(psOverlapped);
+						break;
+					}
+
+				}
+				// 해당 자료에 대한 lock 해제.
+				m_Accessor.release();
+			}
+		}
+		// 보낼 메세지가 없을때는 다른 쓰레드에게 점유권을 넘겨줌.
+		Sleep(0);
+	}
 }
 
 bool DHServer::AddClientSocket(Socket_Struct* psSocket)
@@ -466,55 +585,46 @@ void DHServer::Reuse_Socket(SOCKET _Socket)
 	m_accessor.release();
 }
 
-void DHServer::Delete_in_Socket_List(Socket_Struct* psSocket)
+void DHServer::Delete_in_Socket_List(SOCKET _Socket)
 {
-	std::string Socket_IP(psSocket->IP);
-	auto Socket_PORT = psSocket->PORT;
-	int Socket_Number = psSocket->m_Socket;
+	Client_Map::const_accessor m_Socket_Struct_Acc;
+
+	// 해당 소켓번호에 대응하는 소켓 구조체를 가져온다.
+	if (g_Socket_Struct_Pool.find(m_Socket_Struct_Acc, _Socket) == false)
+	{
+		printf_s("[TCP 서버] [Delete Socket List] 유효하지 않은 Socket 번호입니다.\n");
+		assert(false);
+		return;
+	}
 
 	for (auto it : g_Connected_Client)
 	{
 		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
-		Client_Map::accessor m_Accessor;
+		Client_Map::accessor m_Connect_Client_Acc;
 
 		// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
-		while (!g_Connected_Client.find(m_Accessor, it.first)) {};
+		while (!g_Connected_Client.find(m_Connect_Client_Acc, it.first)) {};
 
-		/// 해당하는 포인터를 찾는다.
-		if (m_Accessor->second == psSocket)
+		// 해당하는 포인터를 찾는다.
+		if (m_Connect_Client_Acc->second == m_Socket_Struct_Acc->second)
 		{
-			/// 해당하는 클라이언트 소켓을 리스트에서 삭제.
-			g_Connected_Client.erase(m_Accessor);
-
+			// 해당하는 클라이언트 소켓을 리스트에서 삭제.
+			g_Connected_Client.erase(m_Connect_Client_Acc);
+			m_Connect_Client_Acc.release();
 			break;
 		}
+
+		m_Connect_Client_Acc.release();
 	}
+
+	std::string Socket_IP(m_Socket_Struct_Acc->second->IP);
+	auto Socket_PORT = m_Socket_Struct_Acc->second->PORT;
+	int Socket_Number = m_Socket_Struct_Acc->second->m_Socket;
+
+	m_Socket_Struct_Acc.release();
 
 	printf_s("[TCP 서버] [%15s:%5d] [Socket_Number:%d] 클라이언트와 종료\n", Socket_IP.c_str(), Socket_PORT, Socket_Number);
 
-}
-
-void DHServer::ExitThread()
-{
-	while (TRUE)
-	{
-		if (GetAsyncKeyState(VK_ESCAPE))
-		{
-			g_Is_Exit = true;
-
-			/// 리슨소켓이 사용되고 있지 않다면..
-			if (INVALID_SOCKET != *g_Listen_Socket)
-			{
-				/// 생각해보니까 얘는 몇개를 참조하고 있던 Accept에서 빠져나오기 위한거니까..
-				/// unique일떄 지울 필요가 없자나?
-				shutdown(*g_Listen_Socket, SD_BOTH);
-				closesocket(*g_Listen_Socket);
-				g_Listen_Socket.reset();
-			}
-
-			break;
-		}
-	}
 }
 
 bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /* = nullptr */)
@@ -562,99 +672,45 @@ bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 	return TRUE;
 }
 
-bool DHServer::SendTargetSocket(SOCKET socket, Packet_Header* psPacket)
-{
-	assert(INVALID_SOCKET != socket);
-	assert(nullptr != psPacket);
-
-	// 등록되지 않은 패킷은 전송할 수 없다.
-	// [서버] -> [클라]
-	if (C2S_Packet_Type_None <= psPacket->Packet_Type)
-	{
-		return FALSE;
-	}
-
-	// 오버랩드 셋팅
-	Overlapped_Struct* psOverlapped = new Overlapped_Struct;
-	psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Send;
-	psOverlapped->m_Socket = socket;
-
-	// 패킷 복사
-	psOverlapped->m_Data_Size = PACKET_HEADER_SIZE + psPacket->Packet_Size;
-
-	if (sizeof(psOverlapped->m_Buffer) < psOverlapped->m_Data_Size)
-	{
-		delete psOverlapped;
-		return FALSE;
-	}
-
-	memcpy_s(psOverlapped->m_Buffer, sizeof(psOverlapped->m_Buffer), psPacket, psOverlapped->m_Data_Size);
-
-	// WSABUF 셋팅
-	WSABUF wsaBuffer;
-	wsaBuffer.buf = psOverlapped->m_Buffer;
-	wsaBuffer.len = psOverlapped->m_Data_Size;
-
-	// WSASend() 오버랩드 걸기
-	DWORD dwNumberOfBytesSent = 0;
-
-	int iResult = WSASend(psOverlapped->m_Socket,
-		&wsaBuffer,
-		1,
-		&dwNumberOfBytesSent,
-		0,
-		psOverlapped,
-		nullptr);
-
-	if ((SOCKET_ERROR == iResult) && (WSAGetLastError() != WSA_IO_PENDING))
-	{
-		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
-		TCHAR szBuffer[ERROR_MSG_BUFIZE] = { 0, };
-		_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 서버] 에러 발생 -- WSASend() :"));
-		err_display(szBuffer);
-
-		delete psOverlapped;
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-bool DHServer::BroadCastMessage(Packet_Header* psPacket)
+bool DHServer::BroadCastMessage(Packet_Header* Send_Packet)
 {
 	// 전체 클라이언트 소켓에 패킷 송신
-	for (auto it : g_Connected_Client)
+	for (auto itr : g_Connected_Client)
 	{
 		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
-		Client_Map::accessor m_Accessor;
+		Client_Map::const_accessor m_Accessor;
 
-		// 해당 자료에대한 lock. (다른데서 사용중이라면 기다림)
-		while (!g_Connected_Client.find(m_Accessor, it.first)) {};
+		// 해당 소켓에 해당하는 클라이언트가 접속해 있는가?
+		if (g_Connected_Client.find(m_Accessor, itr.first) == false)
+		{
+			delete Send_Packet;
+			m_Accessor.release();
+			return LOGIC_FAIL;
+		}
 
-		// 패킷 송신
-		SendTargetSocket(m_Accessor->second->m_Socket, psPacket);
+		Send_Data_Queue.push({ m_Accessor->first , Send_Packet });
 
 		// 해당 자료에 대한 lock 해제.
 		m_Accessor.release();
 	}
 
-	return true;
+	return LOGIC_SUCCESS;
 }
 
 bool DHServer::BackUp_Overlapped(Overlapped_Struct* psOverlapped)
 {
-	if ((psOverlapped->m_Processed_Packet_Size + psOverlapped->m_Data_Size)> MAX_PACKET_SIZE)
+	if ((psOverlapped->m_Processed_Packet_Size + psOverlapped->m_Data_Size) > MAX_PACKET_SIZE)
 	{
 		printf_s("[TCP 서버] 클라이언트로 [%d]Byte 를 초과하는 패킷 처리가 들어왔습니다. \n", MAX_PACKET_SIZE);
 		assert(LOGIC_FAIL);
-		
+
 		return false;
 	}
 
 	// 지금 들어온 데이터에 대한 백업을 해놓는다.
 	memcpy_s(psOverlapped->m_Processing_Packet_Buffer + psOverlapped->m_Processed_Packet_Size, MAX_PACKET_SIZE - psOverlapped->m_Processed_Packet_Size,
 		psOverlapped->m_Buffer, psOverlapped->m_Data_Size);
-	
+
 	// 수신한 데이터들 크기를 누적 시켜준다.
 	psOverlapped->m_Processed_Packet_Size += psOverlapped->m_Data_Size;
 
@@ -664,14 +720,14 @@ bool DHServer::BackUp_Overlapped(Overlapped_Struct* psOverlapped)
 bool DHServer::Push_RecvData(Packet_Header* _Data_Packet, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct, size_t _Pull_Size)
 {
 	// 패킷에 아무런 설정을 하지않고 보냈다면 잘못 된 패킷이다.
-	if (C2S_Packet_Type_None == _Data_Packet->Packet_Type)
+	if (C2S_Packet_Type_None <= (unsigned int)_Data_Packet->Packet_Type)
 	{
 		// 받은 데이터 삭제.
 		delete _Data_Packet;
 		_Data_Packet = nullptr;
 		// 클라이언트 종료
 		SOCKET _Socket_Data = _Socket_Struct->m_Socket;
-		Delete_in_Socket_List(_Socket_Struct);
+		Delete_in_Socket_List(_Socket_Data);
 		Reuse_Socket(_Socket_Data);
 		Available_Overlapped->ResetObject(_Overlapped_Struct);
 		return LOGIC_FAIL;
@@ -699,7 +755,7 @@ bool DHServer::FindSocketOnClient(SOCKET _Target)
 {
 	bool _Find_Result = false;
 	// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
-	Client_Map::accessor m_Accessor;
+	Client_Map::const_accessor m_Accessor;
 
 	// 해당하는 소켓이 존재하는지 검사
 	_Find_Result = g_Connected_Client.find(m_Accessor, _Target);
@@ -720,14 +776,14 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 		{
 			// 클라이언트 종료
 			SOCKET _Socket_Data = psSocket->m_Socket;
-			Delete_in_Socket_List(psSocket);
+			Delete_in_Socket_List(_Socket_Data);
 			Reuse_Socket(_Socket_Data);
 			Available_Overlapped->ResetObject(psOverlapped);
 		}
 		return;
 	}
 
-	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 수신 완료\n", psSocket->IP.c_str(), psSocket->PORT, psSocket->m_Socket, dwNumberOfBytesTransferred);
+	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 수신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
 
 	// 이번에 받은 데이터 양
 	psOverlapped->m_Data_Size = dwNumberOfBytesTransferred;
@@ -737,7 +793,7 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 	{
 		// 클라이언트 종료
 		SOCKET _Socket_Data = psSocket->m_Socket;
-		Delete_in_Socket_List(psSocket);
+		Delete_in_Socket_List(_Socket_Data);
 		Reuse_Socket(_Socket_Data);
 		Available_Overlapped->ResetObject(psOverlapped);
 		return;
@@ -771,9 +827,9 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 		Packet_header = reinterpret_cast<Packet_Header*>(malloc(Packet_Total_Size));
 		memcpy_s(Packet_header, Packet_Total_Size, psOverlapped->m_Processing_Packet_Buffer, Packet_Total_Size);
 
-		if (Push_RecvData(Packet_header, psSocket, psOverlapped, Packet_Total_Size) == false) 
-		{ 
-			return; 
+		if (Push_RecvData(Packet_header, psSocket, psOverlapped, Packet_Total_Size) == false)
+		{
+			return;
 		}
 	}
 
@@ -782,7 +838,7 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 	{
 		// 클라이언트 종료
 		SOCKET _Socket_Data = psSocket->m_Socket;
-		Delete_in_Socket_List(psSocket);
+		Delete_in_Socket_List(_Socket_Data);
 		Reuse_Socket(_Socket_Data);
 		Available_Overlapped->ResetObject(psOverlapped);
 		return;
@@ -791,7 +847,7 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 
 void DHServer::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
-	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", psSocket->IP.c_str(), psSocket->PORT, psSocket->m_Socket, dwNumberOfBytesTransferred);
+	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
 
 	delete psOverlapped;
 }
@@ -850,14 +906,14 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 		return;
 	}
 
-	printf_s("[TCP 서버] [%15s:%5d] [Socket : %d] 클라이언트 접속\n", psSocket->IP.c_str(), psSocket->PORT, psSocket->m_Socket);
+	printf_s("[TCP 서버] [%15s:%5d] [Socket : %d] 클라이언트 접속\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket);
 
 	/// WSARecv를 걸어둬야 정보를 받을 수 있겠죠?!
 	if (!Reserve_WSAReceive(psSocket->m_Socket))
 	{
 		// 클라이언트 종료
 		SOCKET _Socket_Data = psSocket->m_Socket;
-		Delete_in_Socket_List(psSocket);
+		Delete_in_Socket_List(_Socket_Data);
 		Reuse_Socket(_Socket_Data);
 		Available_Overlapped->ResetObject(psOverlapped);
 	}

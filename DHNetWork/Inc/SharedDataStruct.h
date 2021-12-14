@@ -153,10 +153,8 @@ struct S2C_Packet : public Packet_Header
 		Packet_Type = S2C_Packet_Type_None;
 	}
 
-	// 클라이언트 IP/Port 정보 및 데이터를 담을 Packet_Buffer 로 구성되어있음.
-	char			Client_IP[IP_SIZE]					= { 0, };
-	unsigned short	Client_Port							= 0;
-	char			Packet_Buffer[MAX_PACKET_SIZE]		= { 0, };
+	// 데이터를 담을 Packet_Buffer 로 구성되어있음.
+	char Packet_Buffer[MAX_PACKET_SIZE]	= { 0, };
 };
 
 /// 1바이트 정렬 끝.

@@ -169,6 +169,31 @@ void DummyClient::BoundlessSendFunction()
 
 	while (!End_Flag)
 	{
+		std::vector<Network_Message> Msg_Vec;
+
+		if (my_NetWork->Recv(Msg_Vec))
+		{
+			for (auto Msg_Packet : Msg_Vec)
+			{
+				SOCKET _Recv_Socket_Num = Msg_Packet.Socket;
+				S2C_Packet* S2C_Msg = static_cast<S2C_Packet*>(Msg_Packet.Packet);
+
+				switch (S2C_Msg->Packet_Type)
+				{
+				case S2C_Packet_Type_Message:         // 채팅 메세지
+				{
+					/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
+					char* Msg_Buff = new char[MAX_PACKET_SIZE];
+					memcpy_s(Msg_Buff, MAX_PACKET_SIZE, S2C_Msg->Packet_Buffer, S2C_Msg->Packet_Size);
+
+					//printf_s(Msg_Buff);
+					//printf_s("\n");
+				}
+				break;
+				}
+			}
+		}
+
 		/// Send 시간 측정.
 		_Start_Time = std::chrono::system_clock::now();
 
@@ -183,7 +208,7 @@ void DummyClient::BoundlessSendFunction()
 		Total_Time_1.fetch_add(_Poceed_Time_Ms, std::memory_order_relaxed);
 
 		/// 너무 많이보내면 결과확인이 어려워서.. sleep 100만큼 준다. 결과자체는 유의미함.
-		Sleep(10);
+		Sleep(100);
 	}
 
 	/// 만약 종료플래그를 켰는데 connect작업중인 네트워크가 존재하면 끊어줌.

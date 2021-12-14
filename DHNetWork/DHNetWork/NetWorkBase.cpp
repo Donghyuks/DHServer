@@ -43,6 +43,7 @@ NetWorkBase::NetWorkBase()
 void NetWorkBase::err_display(const TCHAR* const cpcMSG)
 {
 	LPVOID lpMsgBuf = nullptr;
+	int Error_Code = WSAGetLastError();
 
 	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
 		nullptr,
@@ -52,7 +53,7 @@ void NetWorkBase::err_display(const TCHAR* const cpcMSG)
 		0,
 		nullptr);
 
-	_tprintf(_T("%s %s"), cpcMSG, reinterpret_cast<TCHAR*>(lpMsgBuf));
+	_tprintf(_T("[Error : %d]%s %s"), Error_Code, cpcMSG, reinterpret_cast<TCHAR*>(lpMsgBuf));
 
 	LocalFree(lpMsgBuf);
 }

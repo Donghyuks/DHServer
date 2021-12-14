@@ -12,22 +12,20 @@
 
 class DHServer : public NetWorkBase
 {
-	/// 전역 변수 및 전역 함수.
+	// 전역 변수 및 전역 함수.
 public:
 	static unsigned short	MAX_USER_COUNT;
 
 private:
 	unsigned short			PORT = 729;
 
-	/// Overlapped IO 를 미리 생성하고 쓰기 위함.
+	// Overlapped IO 를 미리 생성하고 쓰기 위함.
 	ObjectPool<Overlapped_Struct>* Available_Overlapped;	// 사용가능한 오버랩드
 
-	// Recv시 데이터를 저장 해두고 처리하기 위함.
+	// Recv시 데이터를 큐에 넣어두고 관리한다.
 	tbb::concurrent_queue<Network_Message*> Recv_Data_Queue;
-	// 조각난 데이터가 있다면 작업중인 소켓을 넣어두고 붙여준다.
-	tbb::concurrent_hash_map<SOCKET, Packet_Header*> Merging_Big_Data;
-	// 해당 해시 맵에 접근하기 위한 typedef
-	typedef tbb::concurrent_hash_map<SOCKET, Packet_Header*> Big_Data_Find_Map;
+	// Send시 데이터를 큐에 넣고두고 관리한다.
+	tbb::concurrent_queue<std::pair<SOCKET, Packet_Header*>> Send_Data_Queue;
 
 	/// 클라이언트 소켓에대한 포인터.
 	//std::list<std::shared_ptr<Socket_Struct>> g_Client_Socket_List;
@@ -47,17 +45,17 @@ private:
 	// 해당 해시 맵에 접근하기 위한 typedef
 	typedef tbb::concurrent_hash_map<SOCKET, Socket_Struct*> Client_Map;
 
-	/// 서버의 리슨 소켓.
+	// 서버의 리슨 소켓.
 	std::shared_ptr<SOCKET> g_Listen_Socket;
 	std::vector<std::thread*> g_Work_Thread;
 
-	/// Accept 처리를 위한 쓰레드.
-	std::thread* g_Accept_Client_Thread = nullptr;
-	std::thread* g_Exit_Check_Thread = nullptr;
+	// Send 처리를 위한 쓰레드.
+	std::thread* g_Send_Thread = nullptr;
 
 
-	/// IOCP 핸들 (내부적으로 Queue를 생성한다.)
+	// IOCP 핸들 (내부적으로 Queue를 생성한다.)
 	HANDLE	g_IOCP = nullptr;
+	// 전체 종료 플래그
 	BOOL	g_Is_Exit = FALSE;
 
 public:
@@ -67,9 +65,9 @@ public:
 
 
 public:
-	/// 이 네트워크가 서버로 사용한다는 것을 알려주는 플래그나 다름없다. (Accept는 호스트 고유의 함수)
+	// 이 네트워크가 서버로 사용한다는 것을 알려주는 플래그나 다름없다. (Accept는 호스트 고유의 함수)
 	virtual BOOL Accept(unsigned short _Port, unsigned short _Max_User_Count) override;
-	/// SOCKET 이 Invaild 라면 모든 클라이언트에게 메세지 전송. / 그 외에는 해당 소켓에 메세지 전송.
+	// SOCKET 이 Invaild 라면 모든 클라이언트에게 메세지 전송. / 그 외에는 해당 소켓에 메세지 전송.
 	virtual BOOL Send(Packet_Header* Send_Packet, SOCKET _Socket = INVALID_SOCKET) override;
 	virtual BOOL Recv(std::vector<Network_Message>& _Message_Vec) override;
 	virtual BOOL Disconnect(SOCKET _Socket) override;
@@ -77,11 +75,10 @@ public:
 
 private:
 	/// Thread Function
-	// 클라이언트의 WorkThread 로직.
+	// 서버상 WorkThread 로직.
 	void WorkThread();
-	// 클라이언트의 종료를 체크하기 위한 로직.
-	void ExitThread();
-	/// Thread Create
+	// Send Queue를 관리하면서 데이터를 보낼 쓰레드
+	void SendThread();
 	// WorkThread를 CLIENT_THREAD_COUNT 개수만큼 생성.
 	void CreateWorkThread();
 
@@ -91,17 +88,15 @@ private:
 	// 소켓을 재활용하기 위해 Disconnect를 거는 함수.
 	void Reuse_Socket(SOCKET _Socket);
 	// 클라이언트 소켓리스트에서 해당 소켓을 제외하는 함수.
-	void Delete_in_Socket_List(Socket_Struct* psSocket);
+	void Delete_in_Socket_List(SOCKET _Socket);
 	// 해당 소켓이 현재 접속해있는지 검색하는 함수.
 	bool FindSocketOnClient(SOCKET _Target);
 
 	/// Recv , Send Function
 	// WSAReceive를 걸어두는 작업. ( 한번은 걸어둬야 처리에 대한 응답이 왔을 때 대응 가능 )
 	bool Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped = nullptr);
-	// 해당 소켓에 메세지를 보내는 함수.
-	bool SendTargetSocket(SOCKET socket, Packet_Header* psPacket);
 	// 모든 소켓에 메세지를 보내는 함수.
-	bool BroadCastMessage(Packet_Header* psPacket);
+	bool BroadCastMessage(Packet_Header* Send_Packet);
 	// Overlapped에 이전에 들어온 데이터를 백업하고 초기화하는 함수.
 	bool BackUp_Overlapped(Overlapped_Struct* psOverlapped);
 	// 하나의 데이터를 받아오면 수신큐에 넣는 부분.
