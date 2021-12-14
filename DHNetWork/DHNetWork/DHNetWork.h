@@ -14,9 +14,10 @@
 #endif
 
 #include "DHNetWorkAPIDefine.h"
-#define TYPE_NONSET		0b0000
-#define TYPE_DHSERVER	0b0001
-#define TYPE_DHCLIENT	0b0010
+// 현재 네트워크를 생성했을 때, 서버인지 클라이언트인지?
+#define TYPE_NONSET				0b0000
+#define TYPE_DHSERVER			0b0001
+#define TYPE_DHCLIENT			0b0010
 
 class NetWorkBase;
 

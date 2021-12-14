@@ -201,23 +201,7 @@ BOOL DHServer::Recv(std::vector<Network_Message>& _Message_Vec)
 
 		/// 빼온 데이터를 넣어서 보냄.
 		_Message_Vec.push_back(*_Net_Msg);
-		/// 메세지 타입으로 Header 캐스팅.
-		//C2S_Packet* C2S_Msg = static_cast<C2S_Packet*>(cpcHeader);
-
-		//switch (cpcHeader->Packet_Type)
-		//{
-		//case C2S_Packet_Type_Message:         // 채팅 메세지
-		//{
-		//	/// 채팅 메세지가 있으면 MsgBuff에 저장해준다.
-		//	memcpy_s(MsgBuff, ERROR_MSG_BUFIZE, C2S_Msg->Packet_Buffer, ERROR_MSG_BUFIZE);
-		//}
-		//case C2S_Packet_Type_Data:
-		//{
-		//	/// 추후 필요시 구현..
-		//}
-		//break;
-		//}
-
+	
 		// 해제.
 		delete _Net_Msg;
 	}
@@ -677,72 +661,6 @@ bool DHServer::BackUp_Overlapped(Overlapped_Struct* psOverlapped)
 	return true;
 }
 
-bool DHServer::BigData_Init(Big_Data_Find_Map::accessor& _Accessor, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct)
-{
-	size_t Merge_Data_Size = 0;
-	Packet_Header* _Recived_Data = _Accessor->second;
-
-	// 만약 이번에 모든 데이터를 다 받은 경우
-	if (_Overlapped_Struct->m_Data_Size > _Recived_Data->Packet_Size)
-	{
-		// 이번에 합쳐야할 데이터의 크기
-		Merge_Data_Size = _Recived_Data->Packet_Size - _Overlapped_Struct->m_Processed_Packet_Size;
-
-		// 만약 realloc 함수가 실패한다면 할당을 하지 못했으므로 에러를 출력한다.
-		if (NULL == (_Recived_Data = (Packet_Header*)realloc(_Recived_Data, _Recived_Data->Packet_Size)))
-		{
-			printf_s("[TCP 서버] realloc 실패\n");
-			assert(LOGIC_FAIL);
-			return LOGIC_FAIL;
-		}
-
-		// 데이터 합치기.
-		memcpy_s(
-			_Recived_Data + _Overlapped_Struct->m_Processed_Packet_Size,				// 현재 저장되어있는 값 뒤로부터
-			Merge_Data_Size,															// 새로 들어온 데이터 만큼 데이터를 붙인다.
-			_Overlapped_Struct->m_Buffer, Merge_Data_Size								// 버퍼에서 해당크기만큼 복사해옴.
-		);
-
-		// 이때까지 처리했던 오버랩드 구조체를 넘어선 패킷사이즈에 대한 부분을 초기화하고 정리한다.
-		_Overlapped_Struct->m_Data_Size -= _Overlapped_Struct->m_Processed_Packet_Size;
-		_Overlapped_Struct->m_Processed_Packet_Size = 0;
-
-		// 완성된 데이터를 RecvQueue에 넣어둔다.
-		bool Push_Result = Push_RecvData(_Recived_Data, _Socket_Struct, _Overlapped_Struct, Merge_Data_Size);
-
-		// 모두 처리된 데이터는 리스트에서 지워준다.
-		Merging_Big_Data.erase(_Accessor);
-
-		return Push_Result;
-	}
-	// 이번에 모든 데이터를 받지 못한 경우 데이터를 붙이고 이어서 계속 Recv를 한다.
-	else
-	{
-		// 이번에 합쳐야할 데이터의 크기는 이번에 받은 데이터 크기와 같다.
-		Merge_Data_Size = _Overlapped_Struct->m_Data_Size - _Overlapped_Struct->m_Processed_Packet_Size;
-
-		// 만약 realloc 함수가 실패한다면 할당을 하지 못했으므로 에러를 출력한다.
-		if (NULL == (_Recived_Data = (Packet_Header*)realloc(_Recived_Data, _Overlapped_Struct->m_Data_Size)))
-		{
-			printf_s("[TCP 서버] realloc 실패\n");
-			assert(LOGIC_FAIL);
-			return LOGIC_FAIL;
-		}
-
-		// 데이터 합치기.
-		memcpy_s(
-			_Recived_Data + _Overlapped_Struct->m_Processed_Packet_Size,				// 현재 저장되어있는 값 뒤로부터
-			Merge_Data_Size,															// 새로 들어온 데이터 만큼 데이터를 붙인다.
-			_Overlapped_Struct->m_Buffer, Merge_Data_Size								// 버퍼에서 해당크기만큼 복사해옴.
-		);
-
-		// 지금까지 받은 데이터의 크기를 저장하기 위함.
-		_Overlapped_Struct->m_Processed_Packet_Size += _Overlapped_Struct->m_Data_Size;
-		
-		return LOGIC_SUCCESS;
-	}
-}
-
 bool DHServer::Push_RecvData(Packet_Header* _Data_Packet, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct, size_t _Pull_Size)
 {
 	// 패킷에 아무런 설정을 하지않고 보냈다면 잘못 된 패킷이다.
@@ -809,7 +727,7 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 		return;
 	}
 
-	printf_s("[TCP 서버] [%15s:%5d] 패킷 수신 완료 <- %d 바이트\n", psSocket->IP.c_str(), psSocket->PORT, dwNumberOfBytesTransferred);
+	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 수신 완료\n", psSocket->IP.c_str(), psSocket->PORT, psSocket->m_Socket, dwNumberOfBytesTransferred);
 
 	// 이번에 받은 데이터 양
 	psOverlapped->m_Data_Size = dwNumberOfBytesTransferred;
@@ -873,8 +791,7 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 
 void DHServer::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
-	printf_s("[TCP 서버] [%15s:%5d] 패킷 송신 완료 -> %d 바이트\n", psSocket->IP.c_str()
-		, psSocket->PORT, dwNumberOfBytesTransferred);
+	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", psSocket->IP.c_str(), psSocket->PORT, psSocket->m_Socket, dwNumberOfBytesTransferred);
 
 	delete psOverlapped;
 }
@@ -933,7 +850,7 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 		return;
 	}
 
-	printf_s("[TCP 서버] [%15s:%5d] [Socket_Number:%d] 클라이언트가 접속\n", psSocket->IP.c_str(), psSocket->PORT, psSocket->m_Socket);
+	printf_s("[TCP 서버] [%15s:%5d] [Socket : %d] 클라이언트 접속\n", psSocket->IP.c_str(), psSocket->PORT, psSocket->m_Socket);
 
 	/// WSARecv를 걸어둬야 정보를 받을 수 있겠죠?!
 	if (!Reserve_WSAReceive(psSocket->m_Socket))

@@ -182,7 +182,7 @@ void DummyClient::BoundlessSendFunction()
 		/// 1회 실행시 걸린 시간을 기록해둔다.
 		Total_Time_1.fetch_add(_Poceed_Time_Ms, std::memory_order_relaxed);
 
-		/// 너무 많이보내면 결과확인이 어려워서.. sleep 10만큼 준다. 결과자체는 유의미함.
+		/// 너무 많이보내면 결과확인이 어려워서.. sleep 100만큼 준다. 결과자체는 유의미함.
 		Sleep(10);
 	}
 
@@ -331,7 +331,7 @@ void DummyClient::SendVariousPacketFunction()
 		Total_Time_1.fetch_add(_Poceed_Time_Ms, std::memory_order_relaxed);
 
 		/// 너무 많이보내면 결과확인이 어려워서.. sleep 1000만큼 준다. 결과자체는 유의미함.
-		Sleep(1000);
+		Sleep(500);
 	}
 
 	/// 만약 종료플래그를 켰는데 connect작업중인 네트워크가 존재하면 끊어줌.

@@ -8,7 +8,7 @@ int main()
 	DHNetWorkAPI* my_NetWork = new DHNetWorkAPI();
 	my_NetWork->Initialize(DHNetWork_Name::DHNet);
 	my_NetWork->Accept(729, 1000);
-
+	
 	while (true)
 	{	
 		if (my_NetWork->Recv(Msg_Vec))
@@ -26,9 +26,8 @@ int main()
 					char* Msg_Buff = new char[MAX_PACKET_SIZE];
 					memcpy_s(Msg_Buff, MAX_PACKET_SIZE, C2S_Msg->Packet_Buffer, C2S_Msg->Packet_Size);
 
-					printf_s("[SOCKET : %d] ", Msg_Packet.Socket);
-					printf_s(Msg_Buff);
-					printf_s("\n");
+					//printf_s(Msg_Buff);
+					//printf_s("\n");
 				}
 				break;
 				}

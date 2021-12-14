@@ -112,10 +112,10 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 enum C2S_Packet_Type
 {
 	//									TYPE				INDEX
-	C2S_Packet_Type_None = 0,		/// Default 타입			0
-	C2S_Packet_Type_Message,		/// 메세지 타입			1
+	C2S_Packet_Type_Message = 0,	/// 메세지 타입			1
 	C2S_Packet_Type_Unit,			/// 유닛 데이터 타입		2
 	C2S_Packet_Type_World,			/// 게임 월드 데이터		3
+	C2S_Packet_Type_None,			/// Default 타입			0
 };
 
 struct C2S_Packet : public Packet_Header
@@ -138,10 +138,10 @@ struct C2S_Packet : public Packet_Header
 enum S2C_Packet_Type
 {
 	//									TYPE				INDEX
-	S2C_Packet_Type_None = 0,		/// Default 타입			0
-	S2C_Packet_Type_Message,		/// 메세지 타입			1
+	S2C_Packet_Type_Message = 0,	/// 메세지 타입			1
 	S2C_Packet_Type_Unit,			/// 유닛 데이터 타입		2
 	S2C_Packet_Type_World,			/// 게임 월드 데이터		3
+	S2C_Packet_Type_None,			/// Default 타입			0
 };
 
 struct S2C_Packet : public Packet_Header
