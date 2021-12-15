@@ -31,7 +31,7 @@ private:
 public:
 	// 기본생성자로 쓰일 부분..
 	DHClient();
-	~DHClient();
+	virtual ~DHClient();
 
 public:
 	virtual BOOL Send(Packet_Header* Send_Packet, SOCKET _Socket = INVALID_SOCKET) override;

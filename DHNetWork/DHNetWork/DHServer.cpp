@@ -303,8 +303,6 @@ void DHServer::CreateWorkThread()
 
 		/// 쓰레드 관리자에 넣어주고..
 		g_Work_Thread.push_back(Client_Work);
-
-		/// 일해라 쓰레드들!!
 	}
 }
 
@@ -314,7 +312,9 @@ void DHServer::WorkThread()
 
 	DWORD* dwNumberOfBytesTransferred = (DWORD*)m_MemoryPool.GetMemory(sizeof(DWORD));
 	ULONG* Entry_Count = (ULONG*)m_MemoryPool.GetMemory(sizeof(ULONG));
-	ULONG* Get_Entry_Count = (ULONG*)m_MemoryPool.GetMemory(sizeof(ULONG));
+	ULONG* Get_Entry_Count = (ULONG*)m_MemoryPool.GetMemory(sizeof(ULONG));		
+	/// GetQueuedCompletionStatusEx 를 쓰게 되면서 새로 필요한 부분.
+	OVERLAPPED_ENTRY Entry_Data[64];	// 담겨 올 엔트리의 데이터들. 최대 64개로 선언해둠.
 
 	while (TRUE)
 	{
@@ -322,8 +322,6 @@ void DHServer::WorkThread()
 		Socket_Struct* psSocket = nullptr;
 		Overlapped_Struct* psOverlapped = nullptr;
 
-		/// GetQueuedCompletionStatusEx 를 쓰게 되면서 새로 필요한 부분.
-		OVERLAPPED_ENTRY Entry_Data[64];	// 담겨 올 엔트리의 데이터들. 최대 64개로 선언해둠.
 		*Entry_Count = sizeof(Entry_Data) / sizeof(OVERLAPPED_ENTRY);	// 가져올 데이터의 최대 개수 ( 64개 )
 		*Get_Entry_Count = 0;	// 실제로 몇 개의 엔트리를 가져 왔는지 기록하기 위한 변수.
 
@@ -369,6 +367,11 @@ void DHServer::WorkThread()
 				// Overlapped 가 0 이라는 것은 서버의 종료를 알린다.(혹시 모르니 메세지를 남겨 놓자..)
 				printf_s("[TCP 서버] [WorkThread] Overlapped 가 NULL 입니다.\n");
 				PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
+				// 사용한 메모리 영역 반환.
+				m_MemoryPool.ResetMemory(dwNumberOfBytesTransferred, sizeof(DWORD));
+				m_MemoryPool.ResetMemory(Entry_Count, sizeof(ULONG));
+				m_MemoryPool.ResetMemory(Get_Entry_Count, sizeof(ULONG));
+				delete Entry_Data;
 				return;
 			}
 
@@ -422,6 +425,7 @@ void DHServer::WorkThread()
 			{
 			case Overlapped_Struct::IOType::IOType_Recv: IOFunction_Recv(*dwNumberOfBytesTransferred, psOverlapped, psSocket); break; // WSARecv() 의 Overlapped I/O 완료에 대한 처리
 			case Overlapped_Struct::IOType::IOType_Send: IOFunction_Send(*dwNumberOfBytesTransferred, psOverlapped, psSocket); break; // WSASend() 의 Overlapped I/O 완료에 대한 처리
+			default: Available_Overlapped->ResetObject(psOverlapped); break;
 			}
 		}
 	}
@@ -430,6 +434,7 @@ void DHServer::WorkThread()
 	m_MemoryPool.ResetMemory(dwNumberOfBytesTransferred, sizeof(DWORD));
 	m_MemoryPool.ResetMemory(Entry_Count, sizeof(ULONG));
 	m_MemoryPool.ResetMemory(Get_Entry_Count, sizeof(ULONG));
+	delete Entry_Data;
 
 	return;
 }
@@ -467,6 +472,9 @@ void DHServer::SendThread()
 				// 초기 셋팅.
 				Buff_Offset = 0;
 				Total_Packet_Size = PACKET_HEADER_SIZE + Send_Packet.second->Packet_Size;
+				// 패킷의 사이즈가 클 경우에서, 만약 마지막 패킷을 보냈는데 오류가나면? 이전 패킷들에 대한 오버랩드도 반환해야한다.
+				//std::vector<__int64> Used_Overlapped_in_Cycle;
+
 
 				// 만약 패킷의 사이즈가 준비된 버퍼보다 크다면 잘라서 여러개로 보내준다.
 				while (Total_Packet_Size > 0)
@@ -475,6 +483,8 @@ void DHServer::SendThread()
 					Overlapped_Struct* psOverlapped = Available_Overlapped->GetObject();
 					psOverlapped->m_IOType = Overlapped_Struct::IOType::IOType_Send;
 					psOverlapped->m_Socket = Send_Packet.first;
+
+					//Used_Overlapped_in_Cycle.push_back((__int64)(psOverlapped));
 
 					// 패킷 복사
 					// 패킷이 아직 오버랩드 버퍼보다 사이즈가 큰 경우
@@ -517,13 +527,14 @@ void DHServer::SendThread()
 						_stprintf_s(szBuffer, _countof(szBuffer), _T("[TCP 서버] [SendThread] 에러 발생 -- WSASend() :"));
 						err_display(szBuffer);
 
-						// 현재의 오버랩드를 재사용 한다.
+						// 이번에 패킷을 보낼때 사용했던 오버랩드를 재사용 한다.
 						Available_Overlapped->ResetObject(psOverlapped);
 						break;
 					}
 
 				}
 				// 다 처리한 데이터 해제.
+				//Used_Overlapped_in_Cycle.clear();
 				delete Send_Packet.second;
 				// 해당 자료에 대한 lock 해제.
 				m_Accessor.release();
@@ -559,7 +570,7 @@ void DHServer::Reuse_Socket(SOCKET _Socket)
 	// 해당 소켓번호에 대응하는 소켓 구조체를 가져온다.
 	g_Socket_Struct_Pool.find(m_accessor, _Socket);
 
-	// 소멸자를 호출하여 초기화.
+	// 생성자를 호출하여 초기화.
 	m_accessor->second = new (m_accessor->second) Socket_Struct;
 	// 소켓 번호는 제활용. 어차피 key 값으로 소켓과 매칭되어 있으므로.
 	m_accessor->second->m_Socket = _Socket;

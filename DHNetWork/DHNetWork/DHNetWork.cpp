@@ -12,7 +12,7 @@ DHNetWork::DHNetWork()
 
 DHNetWork::~DHNetWork()
 {
-
+	End();
 }
 
 BOOL DHNetWork::Initialize()
@@ -102,16 +102,17 @@ BOOL DHNetWork::Recv(std::vector<Network_Message>& _Message_Vec)
 }
 
 BOOL DHNetWork::End()
-{
-	/// 현재 네트워크가 설정되어있지 않은경우.
-	if (Current_Type == TYPE_NONSET)
+{	
+	if (m_NetWork != nullptr)
 	{
-		PrintTypeErrMessage();
-		return LOGIC_FAIL;
+		/// 서버 / 클라이언트에 해당하는 함수를 호출해줌.
+		bool End_result = m_NetWork->End();
+		delete m_NetWork;
+		m_NetWork = nullptr;
+		return End_result;
 	}
 
-	/// 서버 / 클라이언트에 해당하는 함수를 호출해줌.
-	return m_NetWork->End();
+	return true;
 }
 
 void DHNetWork::PrintTypeErrMessage()

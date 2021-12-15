@@ -73,8 +73,8 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 		Offset = 0;
 		OffsetHigh = 0;
 		m_Socket = INVALID_SOCKET;
-		ZeroMemory(m_Buffer, sizeof(m_Buffer));
-		ZeroMemory(m_Processing_Packet_Buffer, sizeof(m_Processing_Packet_Buffer));
+		ZeroMemory(m_Buffer, sizeof(OVERLAPPED_BUFIZE));
+		ZeroMemory(m_Processing_Packet_Buffer, sizeof(MAX_PACKET_SIZE));
 		m_Data_Size = 0;
 		m_Processing_Packet_Size = 0;
 		m_Processed_Packet_Size = 0;
@@ -83,8 +83,8 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 	}
 	~Overlapped_Struct()
 	{
-		ZeroMemory(m_Buffer, sizeof(m_Buffer));
-		ZeroMemory(m_Processing_Packet_Buffer, sizeof(m_Processing_Packet_Buffer));
+		ZeroMemory(m_Buffer, sizeof(OVERLAPPED_BUFIZE));
+		ZeroMemory(m_Processing_Packet_Buffer, sizeof(MAX_PACKET_SIZE));
 	}
 
 	/// Overlapped I/O의 작업 종류.

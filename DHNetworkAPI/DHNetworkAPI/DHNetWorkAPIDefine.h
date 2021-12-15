@@ -47,4 +47,6 @@ public:
 	virtual BOOL	Accept(unsigned short _Port, unsigned short _Max_User_Count) abstract;
 	virtual BOOL	Disconnect(SOCKET _Socket) abstract;
 	virtual BOOL	End() abstract;
+
+	virtual ~DHNetworkAPIBase() {};
 };

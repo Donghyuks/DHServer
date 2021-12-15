@@ -51,7 +51,7 @@ DummyClient::DummyClient()
 {
 	// 만들 쓰레드 개수는 적절하게.. 5개정도로
 	//Make_Thread_Count = (GetCoreCount() - 1) * 2;	// 컴퓨터 코어 개수만큼 생성
-	Make_Thread_Count = 5;
+	Make_Thread_Count = 1;
 
 	Key_IO = new DHKeyIO;
 	Logger = new DHLogger(_T("DummyClient"));
@@ -261,8 +261,6 @@ void DummyClient::SendEndFunction()
 			my_NetWork = new DHNetWorkAPI();
 			my_NetWork->Initialize(DHNetWork_Name::DHNet);
 		}
-		// Connect 까지 대기..
-		bool _Test_Result = my_NetWork->Connect(CONNECT_PORT, CONNECT_IP);
 
 		if (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP))
 		{

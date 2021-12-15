@@ -39,6 +39,12 @@ struct DHNETWORKAPI_DLL Network_Message
 /// Adapter Pattern 을 사용하기위한 InterFace
 class DHNETWORKAPI_DLL DHNetworkAPIBase
 {
+//private:
+//	void EndCall()
+//	{
+//		this->End();
+//	}
+
 public:
 	virtual BOOL	Initialize() abstract;
 	virtual BOOL	Recv(std::vector<Network_Message>& _Message_Vec) abstract;

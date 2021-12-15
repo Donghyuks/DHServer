@@ -34,7 +34,7 @@ private:
 
 public:
 	DHNetWork();
-	~DHNetWork();
+	virtual ~DHNetWork();
 
 	/// √ ±‚»≠
 	virtual BOOL	Initialize() override;

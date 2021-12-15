@@ -10,6 +10,7 @@ class NetWorkBase
 {
 public:
 	NetWorkBase();
+	virtual ~NetWorkBase() {};
 
 private:
 	// DisconnectEx를 사용할 함수포인터.

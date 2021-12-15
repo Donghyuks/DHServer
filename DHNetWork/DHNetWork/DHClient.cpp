@@ -23,7 +23,10 @@ DHClient::DHClient()
 
 DHClient::~DHClient()
 {
-	End();
+	if (g_IOCP != nullptr)
+	{
+		End();
+	}
 }
 
 BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKET*/)
@@ -99,6 +102,7 @@ BOOL DHClient::End()
 
 	// Send & Connect 쓰레드 종료.
 	g_Connect_Send_Client_Thread->join();
+	delete g_Connect_Send_Client_Thread;
 
 	for (auto k : g_Work_Thread)
 	{

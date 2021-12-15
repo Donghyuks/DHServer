@@ -63,7 +63,7 @@ private:
 public:
 	/// 기본생성자로 쓰일 부분..
 	DHServer();
-	~DHServer();
+	virtual ~DHServer();
 
 
 public:

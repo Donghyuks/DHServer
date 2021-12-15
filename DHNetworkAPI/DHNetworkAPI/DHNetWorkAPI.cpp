@@ -53,5 +53,11 @@ BOOL DHNetWorkAPI::Disconnect(SOCKET _Socket)
 
 BOOL DHNetWorkAPI::End()
 {
-	return Set_NetWork->End();
+	if (Set_NetWork != nullptr)
+	{
+		Set_NetWork->End();
+		delete Set_NetWork;
+	}
+
+	return true;
 }
