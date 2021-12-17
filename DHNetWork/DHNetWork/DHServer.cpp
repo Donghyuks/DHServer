@@ -1,4 +1,9 @@
 #include "DHServer.h"
+#include "MemoryPool.h"
+
+// 현재시간을 string으로 변환하기 위함.
+#include <sstream>
+#include <iomanip>
 
 unsigned short DHServer::MAX_USER_COUNT = 0;
 
@@ -17,15 +22,16 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	/// 포트와 최대인원수 설정.
 	PORT = _Port; MAX_USER_COUNT = _Max_User_Count;
 
+	m_MemoryPool = new MemoryPool(SERVER_MEMORYPOOL_COUNT);
 	/// 에러를 출력하기위한 버퍼를 생성해 둠. (메모리풀 사용)
-	TCHAR* Error_Buffer = (TCHAR*)m_MemoryPool.GetMemory(ERROR_MSG_BUFIZE);
+	TCHAR* Error_Buffer = (TCHAR*)m_MemoryPool->GetMemory(ERROR_MSG_BUFIZE);
 
 	/// IOCP를 생성한다.
 	g_IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
 	assert(nullptr != g_IOCP);
 
 	/// 사용가능한 Overlapped를 생성해둔다. (2000개로 생성해둠)
-	Available_Overlapped = new ObjectPool<Overlapped_Struct>(TOTAL_OVERLAPPED_COUNT);
+	Available_Overlapped = new ObjectPool<Overlapped_Struct>(SERVER_OVERLAPPED_COUNT);
 
 	/// Worker Thread들은 보통 코어수 ~ 코어수*2 개 정도로 생성한다고 한다.
 	/// 시스템의 정보를 받아와서 코어수의 *2개만큼 WorkThread를 생성한다.
@@ -120,10 +126,8 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 
 		if (ERROR_IO_PENDING != WSAGetLastError())
 		{
-			wprintf(L"Create accept socket failed with error: %u\n", WSAGetLastError());
 			_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- AcceptEx 함수"));
 			err_display(Error_Buffer);
-			WSACleanup();
 			return LOGIC_FAIL;
 		}
 
@@ -149,8 +153,15 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	// Send 처리를 위한 쓰레드 생성
 	g_Send_Thread = new std::thread(std::bind(&DHServer::SendThread, this));
 
+#ifdef NDEBUG	
+	// 시작시간 정보
+	Start_Time = std::chrono::system_clock::now();
+	Prev_Time = Start_Time;
+	g_Time_Check_Thread = new std::thread(std::bind(&DHServer::TimeThread, this));
+#endif
+
 	// 사용한 메모리 반환.
-	m_MemoryPool.ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
+	m_MemoryPool->ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
 
 	return LOGIC_SUCCESS;
 }
@@ -243,21 +254,44 @@ BOOL DHServer::End()
 	/// 이미 외부에서 초기화를 호출한적이 있다면 그냥 리턴. ( End()호출을 안했을경우 소멸자에서 자동으로 해주도록 하기위함. )
 	if (g_IOCP == nullptr)
 		return LOGIC_FAIL;
-
 	g_Is_Exit = true;
 
 	PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
 
+	g_Send_Thread->join();
+	delete g_Send_Thread;
+
+#ifdef NDEBUG
+	g_Time_Check_Thread->join();
+	delete g_Time_Check_Thread;
+#endif
+
 	for (auto k : g_Work_Thread)
 	{
 		k->join();
+		delete k;
 	}
 
 	g_Work_Thread.clear();
 
 	// Send/Recv 큐 초기화.
-	Recv_Data_Queue.clear();
-	Send_Data_Queue.clear();
+	while (!Recv_Data_Queue.empty())
+	{
+		Network_Message* _Msg = nullptr;
+		Recv_Data_Queue.try_pop(_Msg);
+		delete _Msg->Packet;
+		delete _Msg;
+	}
+
+	{
+		std::pair<SOCKET, Packet_Header*> _Packet_Data;
+		
+		while (!Send_Data_Queue.empty())
+		{
+			Send_Data_Queue.try_pop(_Packet_Data);
+			delete _Packet_Data.second;
+		}
+	}
 
 	// IOCP 종료
 	CloseHandle(g_IOCP);
@@ -280,6 +314,7 @@ BOOL DHServer::End()
 
 	// 사용한 풀 삭제
 	delete Available_Overlapped;
+	delete m_MemoryPool;
 
 	// 윈속 종료
 	WSACleanup();
@@ -306,13 +341,47 @@ void DHServer::CreateWorkThread()
 	}
 }
 
+void DHServer::TimeThread()
+{
+#ifdef NDEBUG
+	std::stringstream Time_SString;
+
+	// 시작 시간 변환.
+	auto Local_Time = std::chrono::system_clock::to_time_t(Start_Time);
+	Time_SString << std::put_time(std::localtime(&Local_Time), "%Y-%m-%d %X");
+	std::string Time_String(Time_SString.str());
+	const char* Time_String_Pointer = Time_String.c_str();
+
+	while (!g_Is_Exit)
+	{
+		Current_Time = std::chrono::system_clock::now();
+		Elapsed_Time = Current_Time - Start_Time;
+		Time_Check_Point = Current_Time - Prev_Time;
+
+		// 설정해둔 시간이 지났으면 
+		if (Time_Check_Point.count() > SERVER_TIME_EVENT_s)
+		{
+			printf_s("[TCP 서버] [시작시간 : %s] [경과시간 : %.1f s] \n [Recv Packet : %d] [Send Packet : %d] \n [Current User : %d 명] [Enter User : %d 명] [Exit User : %d 명]\n",
+				Time_String_Pointer, Elapsed_Time.count() * (double)1000, g_Recv_Total_Packet.load(), g_Send_Total_Packet.load(),
+				g_Connected_Client.size(), g_Enter_User_Count.load(), g_Exit_User_Count.load());
+
+			Prev_Time = Current_Time;
+		}
+
+		Sleep(0);
+	}
+	
+	delete Time_String_Pointer;
+#endif
+}
+
 void DHServer::WorkThread()
 {
 	assert(nullptr != g_IOCP);
 
-	DWORD* dwNumberOfBytesTransferred = (DWORD*)m_MemoryPool.GetMemory(sizeof(DWORD));
-	ULONG* Entry_Count = (ULONG*)m_MemoryPool.GetMemory(sizeof(ULONG));
-	ULONG* Get_Entry_Count = (ULONG*)m_MemoryPool.GetMemory(sizeof(ULONG));		
+	DWORD* dwNumberOfBytesTransferred = (DWORD*)m_MemoryPool->GetMemory(sizeof(DWORD));
+	ULONG* Entry_Count = (ULONG*)m_MemoryPool->GetMemory(sizeof(ULONG));
+	ULONG* Get_Entry_Count = (ULONG*)m_MemoryPool->GetMemory(sizeof(ULONG));		
 	/// GetQueuedCompletionStatusEx 를 쓰게 되면서 새로 필요한 부분.
 	OVERLAPPED_ENTRY Entry_Data[64];	// 담겨 올 엔트리의 데이터들. 최대 64개로 선언해둠.
 
@@ -368,10 +437,10 @@ void DHServer::WorkThread()
 				printf_s("[TCP 서버] [WorkThread] Overlapped 가 NULL 입니다.\n");
 				PostQueuedCompletionStatus(g_IOCP, 0, 0, nullptr);
 				// 사용한 메모리 영역 반환.
-				m_MemoryPool.ResetMemory(dwNumberOfBytesTransferred, sizeof(DWORD));
-				m_MemoryPool.ResetMemory(Entry_Count, sizeof(ULONG));
-				m_MemoryPool.ResetMemory(Get_Entry_Count, sizeof(ULONG));
-				delete Entry_Data;
+				m_MemoryPool->ResetMemory(dwNumberOfBytesTransferred, sizeof(DWORD));
+				m_MemoryPool->ResetMemory(Entry_Count, sizeof(ULONG));
+				m_MemoryPool->ResetMemory(Get_Entry_Count, sizeof(ULONG));
+				delete[] &Entry_Data;
 				return;
 			}
 
@@ -431,10 +500,10 @@ void DHServer::WorkThread()
 	}
 
 	// 사용한 메모리 영역 반환.
-	m_MemoryPool.ResetMemory(dwNumberOfBytesTransferred, sizeof(DWORD));
-	m_MemoryPool.ResetMemory(Entry_Count, sizeof(ULONG));
-	m_MemoryPool.ResetMemory(Get_Entry_Count, sizeof(ULONG));
-	delete Entry_Data;
+	m_MemoryPool->ResetMemory(dwNumberOfBytesTransferred, sizeof(DWORD));
+	m_MemoryPool->ResetMemory(Entry_Count, sizeof(ULONG));
+	m_MemoryPool->ResetMemory(Get_Entry_Count, sizeof(ULONG));
+	delete[] &Entry_Data;
 
 	return;
 }
@@ -506,7 +575,7 @@ void DHServer::SendThread()
 					Buff_Offset++;
 
 					// WSABUF 셋팅
-					psOverlapped->m_WSABUF.len = psOverlapped->m_Data_Size;
+					psOverlapped->m_WSABUF.len = (ULONG)psOverlapped->m_Data_Size;
 
 					// WSASend() 오버랩드 걸기
 					DWORD dwNumberOfBytesSent = 0;
@@ -610,13 +679,17 @@ void DHServer::Delete_in_Socket_List(SOCKET _Socket)
 
 	std::string Socket_IP(m_Socket_Struct_Acc->second->IP);
 	auto Socket_PORT = m_Socket_Struct_Acc->second->PORT;
-	int Socket_Number = m_Socket_Struct_Acc->second->m_Socket;
+	int Socket_Number = (int)m_Socket_Struct_Acc->second->m_Socket;
 	m_Socket_Struct_Acc->second->Is_Available = false;
 
 	m_Socket_Struct_Acc.release();
 
+#if NDEBUG
+	// 나간 유저수 체크.
+	g_Exit_User_Count.fetch_add(1, std::memory_order_relaxed);
+#else
 	printf_s("[TCP 서버] [%15s:%5d] [Socket_Number:%d] 클라이언트와 종료\n", Socket_IP.c_str(), Socket_PORT, Socket_Number);
-
+#endif
 }
 
 bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /* = nullptr */)
@@ -778,7 +851,12 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 		return;
 	}
 
+#if NDEBUG
+	// 받은 데이터 총량 측정.
+	g_Recv_Total_Packet.fetch_add(dwNumberOfBytesTransferred, std::memory_order_relaxed);
+#else
 	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 수신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
+#endif
 
 	// 이번에 받은 데이터 양
 	psOverlapped->m_Data_Size = dwNumberOfBytesTransferred;
@@ -842,7 +920,12 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 
 void DHServer::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
+#if NDEBUG
+	// 보낸 데이터 총량 측정.
+	g_Send_Total_Packet.fetch_add(dwNumberOfBytesTransferred, std::memory_order_relaxed);
+#else
 	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
+#endif
 
 	Available_Overlapped->ResetObject(psOverlapped);
 }
@@ -852,7 +935,7 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 	/// 만약 최대 유저수에 도달했다면 해당 소켓을 끊어줘야 한다.
 	if (g_Connected_Client.size() == MAX_USER_COUNT)
 	{
-		int k = g_Connected_Client.size();
+		size_t k = g_Connected_Client.size();
 		// 클라이언트 종료
 		SOCKET _Socket_Data = psOverlapped->m_Socket;
 		Reuse_Socket(_Socket_Data);
@@ -900,7 +983,12 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 		return;
 	}
 
+#if NDEBUG
+	// 들어온 유저수 체크.
+	g_Enter_User_Count.fetch_add(1, std::memory_order_relaxed);
+#else
 	printf_s("[TCP 서버] [%15s:%5d] [Socket : %d] 클라이언트 접속\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket);
+#endif
 
 	/// WSARecv를 걸어둬야 정보를 받을 수 있겠죠?!
 	if (!Reserve_WSAReceive(psSocket->m_Socket))
@@ -910,8 +998,11 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 		Delete_in_Socket_List(_Socket_Data);
 		Reuse_Socket(_Socket_Data);
 		Available_Overlapped->ResetObject(psOverlapped);
+		return;
 	}
 
+	// 사용된 오버랩드 반납.
+	Available_Overlapped->ResetObject(psOverlapped);
 	// 소켓구조체를 이제 사용가능한 상태로 바꿔준다.
 	psSocket->Is_Available = true;
 }
@@ -933,16 +1024,16 @@ void DHServer::IOFunction_Disconnect(Overlapped_Struct* psOverlapped)
 		sizeof(sockaddr_in) + IP_SIZE,							// 로컬 주소 정보의 바이트 수
 		sizeof(sockaddr_in) + IP_SIZE,							// 리모트 주소 정보의 바이트 수
 		&dwByte,												// 받은 바이트의 개수
-		psOverlapped							// Overlapped 구조체
+		psOverlapped											// Overlapped 구조체
 	);
 
 	if (ERROR_IO_PENDING != WSAGetLastError())
 	{
-		wprintf(L"Create accept socket failed with error: %u\n", WSAGetLastError());
-		_stprintf_s(Error_Buffer, _countof(Error_Buffer), _T("[TCP 서버] 에러 발생 -- DisconnectEX 함수"));
+		_stprintf_s(Error_Buffer, _countof(Error_Buffer), _T("[TCP 서버] IO_Disconnect 에러 발생 -- AcceptEx  함수"));
 		err_display(Error_Buffer);
-		WSACleanup();
 		assert(false);
+
+		Available_Overlapped->ResetObject(psOverlapped);
 		return;
 	}
 }

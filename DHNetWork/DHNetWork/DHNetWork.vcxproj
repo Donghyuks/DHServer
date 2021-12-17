@@ -122,7 +122,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;DHNETWORK_EXPORTS;DHNETWORKAPI_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;DHNETWORK_EXPORTS;DHNETWORKAPI_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -151,7 +151,6 @@ copy /Y "$(ProjectDir)SharedDataStruct.h" "$(SolutionDir)Inc"
 copy /Y "$(SolutionDir)Inc\*.h" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\Inc"
 copy /Y "$(SolutionDir)lib\Debug\*.lib" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\lib\Debug"
 copy /Y "$(SolutionDir)lib\Debug\*.dll" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\lib\Debug"
-copy /Y "$(SolutionDir)Inc\*.h" "$(SolutionDir)..\NetWorkTestConsole\TestServer\ImportLibrary\Inc"
 copy /Y "$(SolutionDir)lib\Debug\*.lib" "$(SolutionDir)..\NetWorkTestConsole\TestServer\ImportLibrary\lib\Debug"
 copy /Y "$(SolutionDir)lib\Debug\*.dll" "$(SolutionDir)..\NetWorkTestConsole\TestServer\ImportLibrary\lib\Debug"</Command>
     </PostBuildEvent>
@@ -162,7 +161,7 @@ copy /Y "$(SolutionDir)lib\Debug\*.dll" "$(SolutionDir)..\NetWorkTestConsole\Tes
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;DHNETWORK_EXPORTS;DHNETWORKAPI_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;NDEBUG;DHNETWORK_EXPORTS;DHNETWORKAPI_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -189,7 +188,12 @@ copy /Y "$(TargetDir)*.dll" "$(SolutionDir)lib\Release"
 copy /Y "$(ProjectDir)DHNetWork.h" "$(SolutionDir)Inc"
 copy /Y "$(ProjectDir)NetWorkDefine.h" "$(SolutionDir)Inc"
 copy /Y "$(ProjectDir)DHNetworkAPIDefine.h" "$(SolutionDir)Inc"
-copy /Y "$(ProjectDir)SharedDataStruct.h" "$(SolutionDir)Inc</Command>
+copy /Y "$(ProjectDir)SharedDataStruct.h" "$(SolutionDir)Inc
+copy /Y "$(SolutionDir)Inc\*.h" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\Inc"
+copy /Y "$(SolutionDir)lib\Release\*.lib" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\lib\Release"
+copy /Y "$(SolutionDir)lib\Release\*.dll" "$(SolutionDir)..\NetWorkTestConsole\TestClient\ImportLibrary\lib\Release"
+copy /Y "$(SolutionDir)lib\Release\*.lib" "$(SolutionDir)..\NetWorkTestConsole\TestServer\ImportLibrary\lib\Release"
+copy /Y "$(SolutionDir)lib\Release\*.dll" "$(SolutionDir)..\NetWorkTestConsole\TestServer\ImportLibrary\lib\Release"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -207,6 +211,7 @@ copy /Y "$(ProjectDir)SharedDataStruct.h" "$(SolutionDir)Inc</Command>
     <ClCompile Include="DHClient.cpp" />
     <ClCompile Include="DHNetWork.cpp" />
     <ClCompile Include="DHServer.cpp" />
+    <ClCompile Include="MemoryPool.cpp" />
     <ClCompile Include="NetWorkBase.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

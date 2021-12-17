@@ -3,6 +3,7 @@
 //#define CONNECT_IP "221.163.91.100"
 #define CONNECT_IP "127.0.0.1"
 #define CONNECT_PORT 729
+#define MAX_TEST_THREAD 5
 
 #include <thread>
 #include <vector>
@@ -34,7 +35,6 @@ private:
 	DHLogger* Logger = nullptr;
 
 	TestCaseNumber Current_TestCase = TestCaseNumber::NonSet_TestCase;
-	int Make_Thread_Count = 0;
 	bool End_Flag = false;
 	std::vector<std::thread*> Thread_List;
 

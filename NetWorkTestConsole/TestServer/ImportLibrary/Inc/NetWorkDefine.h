@@ -1,7 +1,11 @@
 #pragma once
 
 /// SETTING COUNT.
-#define TOTAL_OVERLAPPED_COUNT			2000	// 총 오버랩드 개수.
+// SERVER
+#define SERVER_OVERLAPPED_COUNT			10000	// 총 오버랩드 개수.
+#define SERVER_MEMORYPOOL_COUNT			2000	// 메모리풀 사용 개수.
+#define SERVER_TIME_EVENT_ms			1000	// Release 모드 시 일정 시간(ms 단위 설정) 주기로 서버정보 출력.				
+// CLIENT
 #define CLIENT_THREAD_COUNT				1		// 클라이언트의 쓰레드 개수 (클라이언트의 쓰레드는 웬만하면.. 1개여도 충분!)
 #define CLIENT_IOCP_THREAD_COUNT		2		// 클라이언트의 IOCP 쓰레드 개수
 #define CLIENT_OVERLAPPED_COUNT			1000	// 클라이언트의 IOCP 쓰레드 개수

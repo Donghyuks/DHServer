@@ -1,9 +1,8 @@
 #pragma once
-/// 서버나 클라이언트에 공통적으로 필요한 부분을 클래스로 따로 빼내어 상속한다.
+// 서버나 클라이언트에 공통적으로 필요한 부분을 클래스로 따로 빼내어 상속한다.
 #include "SharedDataStruct.h"
 
-/// 메모리 / 오브젝트 풀
-#include "MemoryPool.h"
+// 서버/클라이언트에서 공통으로 사용할 오브젝트 풀
 #include "ObjectPool.h"
 
 class NetWorkBase

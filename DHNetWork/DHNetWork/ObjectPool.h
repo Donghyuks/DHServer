@@ -1,7 +1,8 @@
 #pragma once
 
-/// TBB
+// TBB
 #include "tbb/concurrent_queue.h"
+// STL
 #include <vector>
 
 template<class T>
@@ -9,10 +10,10 @@ class ObjectPool
 {
 private:
 	int m_Sample_Obj_Count = 0;
-	// 사용가능한 오브젝트에 대한 관리.
+	// 전체 사용 될 오브젝트.
+	std::vector<T*> ALL_Object_List;
+
 	tbb::concurrent_queue<T*> m_Available_Obj;
-	// 현재 사용중인 오브젝트에 대한 관리 (추후 삭제시, 같이 삭제하기 위함)
-	tbb::concurrent_queue<T*> m_Using_Obj;
 
 public:
 	ObjectPool(int _Sample_Obj_Count = 2000);
@@ -28,11 +29,9 @@ public:
 
 template<class T>
 void ObjectPool<T>::Non_ResetObject(T* Setting_Object)
-{
-	// 다시 사용 가능한 큐에 넣어둠.
+{	
+	// 다시 사용가능한 큐에 넣는다.
 	m_Available_Obj.push(Setting_Object);
-	// 사용중인 큐에서 제거.
-	m_Using_Obj.try_pop(Setting_Object);
 }
 
 /// 만약 삭제하는데 다른데서 Obj가 사용중이라면.. (ref count) 를 써야 하는 경우 라면
@@ -46,8 +45,6 @@ void ObjectPool<T>::ResetObject(T* Used_Object)
 	T* Reset_Object = new (Used_Object) T;
 	// 다시 사용 가능한 큐에 넣어둠.
 	m_Available_Obj.push(Reset_Object);
-	// 사용중인 큐에서 제거.
-	m_Using_Obj.try_pop(Reset_Object);
 }
 
 template<class T>
@@ -61,14 +58,15 @@ T* ObjectPool<T>::GetObject()
 	{
 		for (int i = 0; i < (m_Sample_Obj_Count / 10); i++)
 		{
-			m_Available_Obj.push(new T);
+			T* Add_Object = new T;
+			m_Available_Obj.push(Add_Object);
+			// 현재 사용중 혹은 사용안하는 모든 오브젝트리스트를 관리하기위해 따로 Vector에 주솟값을 저장해둔다.
+			ALL_Object_List.push_back(Add_Object);
 		}
 	}
 
 	// Case 02. 사용 가능한 오브젝트가 큐에 존재한다면, 해당 오브젝트를 반환해준다.
 	while (!m_Available_Obj.try_pop(Return_Obj)){}
-	// 사용중인 큐에 반환하는 오브젝트 추가해 둠.
-	m_Using_Obj.push(Return_Obj);
 
 	return Return_Obj;
 }
@@ -81,47 +79,22 @@ ObjectPool<T>::ObjectPool(int _Sample_Obj_Count /*= 2000*/)
 
 	for (int i = 0; i < _Sample_Obj_Count; i++)
 	{
-		m_Available_Obj.push(new T);
+		T* Add_Object = new T;
+		m_Available_Obj.push(Add_Object);
+		// 현재 사용중 혹은 사용안하는 모든 오브젝트리스트를 관리하기위해 따로 Vector에 주솟값을 저장해둔다.
+		ALL_Object_List.push_back(Add_Object);
 	}
 }
 
 template<class T>
 ObjectPool<T>::~ObjectPool()
 {
-	// 두번 지워지는 포인터를 방지하기 위함. ( 도중에 강종했을때 1~2개 발생 )
-	std::vector<__int64> TwoTime_Delete_Pointer;
-	bool Is_Deleted = false;
-	T* My_Object = nullptr;
+	m_Available_Obj.clear();
 
-	while (!m_Using_Obj.empty())
+	for (auto Generated_Object : ALL_Object_List)
 	{
-		m_Using_Obj.try_pop(My_Object);
-		delete My_Object;
-		TwoTime_Delete_Pointer.push_back((__int64)My_Object);
-		My_Object = nullptr;
+		delete Generated_Object;
+		Generated_Object = nullptr;
 	}
-
-	while (!m_Available_Obj.empty())
-	{
-		m_Available_Obj.try_pop(My_Object);
-
-		for (auto Already_Delete_Ptr : TwoTime_Delete_Pointer)
-		{
-			if (Already_Delete_Ptr == (__int64)My_Object)
-			{
-				Is_Deleted = true;
-				break;
-			}
-		}
-
-		if (!Is_Deleted)
-		{
-			delete My_Object;
-			My_Object = nullptr;
-			Is_Deleted = false;
-		}
-	}
-
-	TwoTime_Delete_Pointer.clear();
 }
 

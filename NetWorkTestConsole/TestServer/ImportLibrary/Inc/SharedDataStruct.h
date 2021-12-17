@@ -72,6 +72,7 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 		InternalHigh = 0;
 		Offset = 0;
 		OffsetHigh = 0;
+		m_IOType = IOType::IOType_None;
 		m_Socket = INVALID_SOCKET;
 		ZeroMemory(m_Buffer, sizeof(OVERLAPPED_BUFIZE));
 		ZeroMemory(m_Processing_Packet_Buffer, sizeof(MAX_PACKET_SIZE));
@@ -95,7 +96,8 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 		// 소켓의 재사용을 위해 DisconnectEx 를 사용.
 		IOType_Disconnect,
 		IOType_Recv,
-		IOType_Send
+		IOType_Send,
+		IOType_None,		// 아무것도 지정되지 않은 상태
 	};
 
 	IOType			m_IOType;						// 처리결과를 통보받은 후 작업을 구분하기 위해.

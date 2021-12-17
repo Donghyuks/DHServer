@@ -50,8 +50,7 @@ int DummyClient::GetCoreCount()
 DummyClient::DummyClient()
 {
 	// 만들 쓰레드 개수는 적절하게.. 5개정도로
-	//Make_Thread_Count = (GetCoreCount() - 1) * 2;	// 컴퓨터 코어 개수만큼 생성
-	Make_Thread_Count = 1;
+	//MAX_TEST_THREAD = (GetCoreCount() - 1) * 2;	// 컴퓨터 코어 개수만큼 생성
 
 	Key_IO = new DHKeyIO;
 	Logger = new DHLogger(_T("DummyClient"));
@@ -85,7 +84,7 @@ void DummyClient::StartCase1()
 	// 현재 테스트케이스는 1번이라고 저장.
 	Current_TestCase = TestCaseNumber::Case1;
 
-	for (int i = 0; i < Make_Thread_Count; i++)
+	for (int i = 0; i < MAX_TEST_THREAD; i++)
 	{
 		// 메세지를 보내고 종료하는 과정을 무한히 반복.
 		std::thread* _New_Thread = new std::thread(std::bind(&DummyClient::SendEndFunction, this));
@@ -111,14 +110,14 @@ void DummyClient::StartCase2()
 	// 현재 테스트케이스는 2번이라고 저장.
 	Current_TestCase = TestCaseNumber::Case2;
 
-	for (int i = 0; i < Make_Thread_Count / 5; i++)
+	for (int i = 0; i < MAX_TEST_THREAD / 5; i++)
 	{
 		// 무한히 보내는 쓰레드는 총 쓰레드의 10분의 1만큼 생성.
 		std::thread* _Send_Thread = new std::thread(std::bind(&DummyClient::BoundlessEndFunction, this));
 		Thread_List.push_back(_Send_Thread);
 	}
 
-	for (int i = 0; i < (Make_Thread_Count - (Make_Thread_Count / 5)); i++)
+	for (int i = 0; i < (MAX_TEST_THREAD - (MAX_TEST_THREAD / 5)); i++)
 	{
 		// 무한히 접속후 종료만 하는 쓰레드 10분의 9만큼 생성.
 		std::thread* _End_Thread = new std::thread(std::bind(&DummyClient::BoundlessSendFunction, this));
@@ -144,7 +143,7 @@ void DummyClient::StartCase3()
 	// 현재 테스트케이스는 3번이라고 저장.
 	Current_TestCase = TestCaseNumber::Case3;
 
-	for (int i = 0; i < Make_Thread_Count; i++)
+	for (int i = 0; i < MAX_TEST_THREAD; i++)
 	{
 		// 다양한 패킷을 보내는 쓰레드.
 		std::thread* _Send_Various_Packet_Thread = new std::thread(std::bind(&DummyClient::SendVariousPacketFunction, this));
@@ -386,10 +385,10 @@ void DummyClient::StopAllThread()
 			TCHAR Write_Result[MAX_WORD];
 			// 케이스 1번에 대한 결과
 			printf("[DummyClient] CASE_%d 번 실행결과. [Thread : %d 개]\n[실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n", 
-				(int)Current_TestCase ,Make_Thread_Count, Total_Time.load(), Total_Count.load(), Total_Time / (double)Total_Count);
+				(int)Current_TestCase ,MAX_TEST_THREAD, Total_Time.load(), Total_Count.load(), Total_Time / (double)Total_Count);
 
 			_stprintf_s(Write_Result, _T("[DummyClient] CASE_%d 번 실행결과. [Thread : %d 개]\n[실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n"),
-				(int)Current_TestCase, Make_Thread_Count, Total_Time.load(), Total_Count.load(), Total_Time / (double)Total_Count);
+				(int)Current_TestCase, MAX_TEST_THREAD, Total_Time.load(), Total_Count.load(), Total_Time / (double)Total_Count);
 
 			Logger->WriteLog(LogType::COMPLETE_Log, Write_Result);
 		}
@@ -398,18 +397,18 @@ void DummyClient::StopAllThread()
 		{
 			TCHAR Write_Result[MAX_WORD];
 			// 케이스 2번에 대한 결과
-			printf("[DummyClient] CASE_%d 번 실행결과. [Thread : %d 개]\n", (int)Current_TestCase, Make_Thread_Count);
+			printf("[DummyClient] CASE_%d 번 실행결과. [Thread : %d 개]\n", (int)Current_TestCase, MAX_TEST_THREAD);
 
-			printf("[StartEnd Thread : % d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n",
-				Make_Thread_Count / 10, Total_Time_1.load(), Total_Count_1.load(), Total_Time_1 / (double)Total_Count_1);
-
-			printf("[Send Thread : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n",
-				(Make_Thread_Count - (Make_Thread_Count / 10)), Total_Time_2.load(), Total_Count_2.load(), Total_Time_2 / (double)Total_Count_2);
+			printf("[Send Thread\t : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n",
+				(MAX_TEST_THREAD - (MAX_TEST_THREAD / 5)), Total_Time_1.load(), Total_Count_1.load(), Total_Time_1 / (double)Total_Count_1);
+			
+			printf("[Start End\t : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n",
+				MAX_TEST_THREAD / 5, Total_Time_2.load(), Total_Count_2.load(), Total_Time_2 / (double)Total_Count_2);
 
 			_stprintf_s(Write_Result, _T("[DummyClient] CASE_%d 번 실행결과. [Thread : %d 개]\n[SendRecv Thread : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n[StartEnd Thread : %d 개][실행시간] %f ms\t[실행횟수] %d 회\t[평균 응답시간] %f ms\n"),
-				(int)Current_TestCase, Make_Thread_Count,
-				Make_Thread_Count / 2, Total_Time_1.load(), Total_Count_1.load(), Total_Time_1.load() / (double)Total_Count_1,
-				Make_Thread_Count / 2, Total_Time_2.load(), Total_Count_2.load(), Total_Time_2.load() / (double)Total_Count_2);
+				(int)Current_TestCase, MAX_TEST_THREAD,
+				MAX_TEST_THREAD / 2, Total_Time_1.load(), Total_Count_1.load(), Total_Time_1.load() / (double)Total_Count_1,
+				MAX_TEST_THREAD / 2, Total_Time_2.load(), Total_Count_2.load(), Total_Time_2.load() / (double)Total_Count_2);
 
 			Logger->WriteLog(LogType::COMPLETE_Log, Write_Result);
 		}

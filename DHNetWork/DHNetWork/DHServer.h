@@ -9,7 +9,10 @@
 */
 
 #include "NetWorkBase.h"
+#include "tbb/concurrent_hash_map.h"
+#include <chrono>
 
+class MemoryPool;
 class DHServer : public NetWorkBase
 {
 	// 전역 변수 및 전역 함수.
@@ -22,7 +25,7 @@ private:
 	// Overlapped IO 를 미리 생성하고 쓰기 위함. (오버랩드 풀)
 	ObjectPool<Overlapped_Struct>* Available_Overlapped;	// 사용가능한 오버랩드
 	// 메모리풀 생성.
-	MemoryPool m_MemoryPool;
+	MemoryPool* m_MemoryPool = nullptr;
 
 	// Recv시 데이터를 큐에 넣어두고 관리한다.
 	tbb::concurrent_queue<Network_Message*> Recv_Data_Queue;
@@ -54,7 +57,6 @@ private:
 	// Send 처리를 위한 쓰레드.
 	std::thread* g_Send_Thread = nullptr;
 
-
 	// IOCP 핸들 (내부적으로 Queue를 생성한다.)
 	HANDLE	g_IOCP = nullptr;
 	// 전체 종료 플래그
@@ -83,6 +85,8 @@ private:
 	void SendThread();
 	// WorkThread를 CLIENT_THREAD_COUNT 개수만큼 생성.
 	void CreateWorkThread();
+	// 시간 측정용 Thread Function
+	void TimeThread();
 
 	/// Socket Function
 	// 클라이언트 소켓을 리스트에 추가하는 함수.
@@ -109,5 +113,24 @@ private:
 	void IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket);
 	void IOFunction_Accept(Overlapped_Struct* psOverlapped);
 	void IOFunction_Disconnect(Overlapped_Struct* psOverlapped);
+
+#ifdef NDEBUG
+private:
+	// 10초마다 출력할 디버깅용 데이터들.. (Release 모드 시..)
+	std::atomic<int>	 g_Recv_Total_Packet = 0;	// 들어온 패킷들 총 양
+	std::atomic<int>	 g_Send_Total_Packet = 0;	// 보낸 패킷의 총 양
+	std::atomic<int>	 g_Enter_User_Count = 0;	// 들어온 유저의 수
+	std::atomic<int>	 g_Exit_User_Count = 0;		// 나간 유저의 수
+
+	// 시간 측정용..
+	std::chrono::time_point<std::chrono::system_clock> Start_Time;			// 시작 시간
+	std::chrono::time_point<std::chrono::system_clock> Prev_Time;			// 이전 측정 시작 시간
+	std::chrono::time_point<std::chrono::system_clock> Current_Time;		// 현재 시간
+	std::chrono::duration<double> Elapsed_Time;								// 경과 시간
+	std::chrono::duration<double> Time_Check_Point;							// 주기 측정
+
+	// 경과 시간 및 디버깅 데이터를 체크하기 위한 쓰레드. (Release 모드 시 생성)
+	std::thread* g_Time_Check_Thread = nullptr;
+#endif
 };
 

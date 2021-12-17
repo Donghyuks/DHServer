@@ -295,7 +295,9 @@ void DHClient::ConnectSendThread()
 
 			if (SOCKET_ERROR == connect(g_Server_Socket->m_Socket, reinterpret_cast<SOCKADDR*>(&serveraddr), sizeof(serveraddr)))
 			{
-				if (WSAGetLastError() == WSAECONNREFUSED)
+				int Last_Error = WSAGetLastError();
+
+				if (Last_Error == WSAECONNREFUSED)
 				{
 					printf_s("[TCP 클라이언트] 서버 연결 재시도\n");
 					continue;
@@ -390,7 +392,7 @@ void DHClient::SendFunction()
 			Buff_Offset++;
 
 			// WSABUF 셋팅
-			psOverlapped->m_WSABUF.len = psOverlapped->m_Data_Size;
+			psOverlapped->m_WSABUF.len = (ULONG)psOverlapped->m_Data_Size;
 
 			// WSASend() 오버랩드 걸기
 			DWORD dwNumberOfBytesSent = 0;
@@ -563,7 +565,9 @@ void DHClient::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 		return;
 	}
 
+#ifdef _DEBUG
 	printf_s("[TCP 클라이언트] [%d Byte] 패킷 수신 완료\n", dwNumberOfBytesTransferred);
+#endif
 
 	// 이번에 받은 데이터 양
 	psOverlapped->m_Data_Size = dwNumberOfBytesTransferred;
@@ -624,7 +628,9 @@ void DHClient::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 
 void DHClient::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
+#ifdef _DEBUG
 	printf_s("[TCP 클라이언트] [%15s:%d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", IP.c_str(), PORT, (int)psOverlapped->m_Socket, dwNumberOfBytesTransferred);
+#endif
 
 	Available_Overlapped->ResetObject(psOverlapped);
 }
