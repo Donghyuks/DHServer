@@ -11,13 +11,13 @@ int main()
 	std::string Test_Server_Msg("[Server Effective Data]");
 	S2C_Packet* _Server_Msg = new S2C_Packet;
 	strcpy_s(_Server_Msg->Packet_Buffer, Test_Server_Msg.c_str());
-	_Server_Msg->Packet_Type = S2C_Packet_Type::S2C_Packet_Type_Message;
+	_Server_Msg->Packet_Type = 1;
 	_Server_Msg->Packet_Size = Test_Server_Msg.size() + 1;
 
 
 	DHNetWorkAPI* my_NetWork = new DHNetWorkAPI();
-	my_NetWork->Initialize(DHNetWork_Name::DHNet);
-	my_NetWork->Accept(729, 1000);
+	my_NetWork->Initialize(DHNetWork_Name::DHNet, DHDEBUG_SIMPLE);
+	my_NetWork->Accept(729, 1000, 5);
 	
 	while (true)
 	{	
@@ -30,7 +30,7 @@ int main()
 
 				switch (C2S_Msg->Packet_Type)
 				{
-				case C2S_Packet_Type_Message:         // 채팅 메세지
+				case 1:         // 채팅 메세지
 				{
 					memcpy_s(Msg_Buff, MAX_PACKET_SIZE, C2S_Msg->Packet_Buffer, C2S_Msg->Packet_Size);
 

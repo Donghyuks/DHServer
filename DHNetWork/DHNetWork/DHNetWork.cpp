@@ -15,14 +15,14 @@ DHNetWork::~DHNetWork()
 	End();
 }
 
-BOOL DHNetWork::Initialize()
+BOOL DHNetWork::Initialize(unsigned short _Debug_Option/* = DHDEBUG_NONE*/)
 {
-	/// 초기화 작업이 필요하면 넣음..
+	g_Debug_Option = _Debug_Option;
 
 	return LOGIC_SUCCESS;
 }
 
-BOOL DHNetWork::Send(Packet_Header* _Packet, SOCKET _Socket /*= INVALID_SOCKET*/)
+BOOL DHNetWork::Send(Packet_Header* _Packet, int _SendType /*= SEND_TYPE_BROADCAST*/, SOCKET _Socket /*= INVALID_SOCKET*/)
 {
 	if (Current_Type == TYPE_NONSET)
 	{
@@ -35,7 +35,7 @@ BOOL DHNetWork::Send(Packet_Header* _Packet, SOCKET _Socket /*= INVALID_SOCKET*/
 		std::cout << "[DHNetWork] Client로 생성된 네트워크에선 연결된 서버소켓에 Send를 합니다.\n[Send 경고] 해당 Socket 정보가 무시됨.\n" << std::endl;
 	}
 
-	return m_NetWork->Send(_Packet, _Socket);
+	return m_NetWork->Send(_Packet, (int)_SendType, _Socket);
 }
 
 BOOL DHNetWork::Connect(unsigned short _Port, std::string _IP)
@@ -52,13 +52,15 @@ BOOL DHNetWork::Connect(unsigned short _Port, std::string _IP)
 		/// 클라이언트로써 NetWork 생성.
 		Current_Type = TYPE_DHCLIENT;
 		m_NetWork = new DHClient();
+		// 디버그 옵션 설정
+		m_NetWork->SetDebug(g_Debug_Option);
 	}
 
 	/// 들어온 포트와 IP에 따라 네트워크 연결.
 	return m_NetWork->Connect(_Port, _IP);
 }
 
-BOOL DHNetWork::Accept(unsigned short _Port, unsigned short _Max_User_Count)
+BOOL DHNetWork::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsigned short _Work_Thread_Count)
 {
 	/// 이미 서버로 생성되었거나 Accept를 두번이상 호출하는 경우.
 	if (m_NetWork != nullptr || Current_Type == TYPE_DHCLIENT)
@@ -70,9 +72,11 @@ BOOL DHNetWork::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	/// 서버로써 NetWork 생성.
 	Current_Type = TYPE_DHSERVER;
 	m_NetWork = new DHServer();
+	// 디버그 옵션 설정
+	m_NetWork->SetDebug(g_Debug_Option);
 
 	/// 들어온 포트로써 서버를 열고, Max_User 수를 지정해준다.
-	return m_NetWork->Accept(_Port, _Max_User_Count);
+	return m_NetWork->Accept(_Port, _Max_User_Count, _Work_Thread_Count);
 }
 
 BOOL DHNetWork::Disconnect(SOCKET _Socket)

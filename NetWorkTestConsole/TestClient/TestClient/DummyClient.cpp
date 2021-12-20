@@ -159,7 +159,7 @@ void DummyClient::BoundlessSendFunction()
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
 	my_NetWork = new DHNetWorkAPI();
-	my_NetWork->Initialize(DHNetWork_Name::DHNet);
+	my_NetWork->Initialize(DHNetWork_Name::DHNet, DHDEBUG_DETAIL);
 	// Connect 까지 대기..
 	while (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP)) {}
 
@@ -167,7 +167,7 @@ void DummyClient::BoundlessSendFunction()
 	{
 		C2S_Packet* _msg = new C2S_Packet;
 		strcpy_s(_msg->Packet_Buffer, Test_Send_Msg.c_str());
-		_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+		_msg->Packet_Type = 1;
 		_msg->Packet_Size = Test_Send_Msg.size() + 1;
 
 		// 받은 메세지 버퍼 비우기..
@@ -211,7 +211,7 @@ void DummyClient::BoundlessEndFunction()
 		{
 			_Start_Time = std::chrono::system_clock::now();
 			my_NetWork = new DHNetWorkAPI();
-			my_NetWork->Initialize(DHNetWork_Name::DHNet);
+			my_NetWork->Initialize(DHNetWork_Name::DHNet, DHDEBUG_DETAIL);
 		}
 		// Connect 까지 대기..
 		if (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP))
@@ -251,14 +251,14 @@ void DummyClient::SendEndFunction()
 	{
 		C2S_Packet* _msg = new C2S_Packet;
 		strcpy_s(_msg->Packet_Buffer, Test_Send_End_Msg.c_str());
-		_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+		_msg->Packet_Type = 1;
 		_msg->Packet_Size = Test_Send_End_Msg.size() + 1;
 
 		if (my_NetWork == nullptr)
 		{
 			_Start_Time = std::chrono::system_clock::now();
 			my_NetWork = new DHNetWorkAPI();
-			my_NetWork->Initialize(DHNetWork_Name::DHNet);
+			my_NetWork->Initialize(DHNetWork_Name::DHNet, DHDEBUG_DETAIL);
 		}
 
 		if (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP))
@@ -309,7 +309,7 @@ void DummyClient::SendVariousPacketFunction()
 	std::chrono::time_point _Start_Time = std::chrono::system_clock::now();
 
 	my_NetWork = new DHNetWorkAPI();
-	my_NetWork->Initialize(DHNetWork_Name::DHNet);
+	my_NetWork->Initialize(DHNetWork_Name::DHNet, DHDEBUG_DETAIL);
 	// Connect 까지 대기..
 	while (!my_NetWork->Connect(CONNECT_PORT, CONNECT_IP)) {}
 
@@ -320,7 +320,7 @@ void DummyClient::SendVariousPacketFunction()
 		Random_Range_String.resize(Random_Number,'A');
 
 		C2S_Packet* _msg = new C2S_Packet;
-		_msg->Packet_Type = C2S_Packet_Type::C2S_Packet_Type_Message;
+		_msg->Packet_Type = 1;
 		strcpy_s(_msg->Packet_Buffer, Random_Range_String.c_str());
 		_msg->Packet_Size = Random_Range_String.size() + 1;
 

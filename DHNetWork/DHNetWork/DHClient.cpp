@@ -29,7 +29,12 @@ DHClient::~DHClient()
 	}
 }
 
-BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKET*/)
+void DHClient::SetDebug(unsigned short _Debug_Option)
+{
+	g_Debug_Option = _Debug_Option;
+}
+
+BOOL DHClient::Send(Packet_Header* Send_Packet, int _SendType, SOCKET _Socket /*= INVALID_SOCKET*/)
 {
 	assert(nullptr != Send_Packet);
 	if (INVALID_SOCKET == g_Server_Socket->m_Socket)
@@ -39,7 +44,7 @@ BOOL DHClient::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKE
 
 	// 등록되지 않은 패킷은 전송할 수 없다.
 	// [클라] -> [서버]
-	if (C2S_Packet_Type_None <= Send_Packet->Packet_Type)
+	if (PACKET_TYPE_NONE == (unsigned short)Send_Packet->Packet_Type)
 	{
 		return LOGIC_FAIL;
 	}
@@ -71,9 +76,8 @@ BOOL DHClient::Recv(std::vector<Network_Message>& _Message_Vec)
 		// 빼온 데이터를 넣어서 보냄.
 		_Message_Vec.push_back(*_Net_Msg);
 
-		// 해제.
-		delete _Net_Msg->Packet;
 		delete _Net_Msg;
+		_Net_Msg = nullptr;
 	}
 
 	// 큐에 데이터를 다 빼면 TRUE 반환.
@@ -520,7 +524,7 @@ bool DHClient::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 bool DHClient::Push_RecvData(Packet_Header* _Data_Packet, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct, size_t _Pull_Size)
 {
 	// 패킷에 아무런 설정을 하지않고 보냈다면 잘못 된 패킷이다.
-	if (S2C_Packet_Type_None <= (unsigned int)_Data_Packet->Packet_Type)
+	if (PACKET_TYPE_NONE == (unsigned short)_Data_Packet->Packet_Type)
 	{
 		// 받은 데이터 삭제.
 		delete _Data_Packet;
@@ -565,9 +569,10 @@ void DHClient::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 		return;
 	}
 
-#ifdef _DEBUG
-	printf_s("[TCP 클라이언트] [%d Byte] 패킷 수신 완료\n", dwNumberOfBytesTransferred);
-#endif
+	if (g_Debug_Option == DHDEBUG_DETAIL)
+	{
+		printf_s("[TCP 클라이언트] [%d Byte] 패킷 수신 완료\n", dwNumberOfBytesTransferred);
+	}
 
 	// 이번에 받은 데이터 양
 	psOverlapped->m_Data_Size = dwNumberOfBytesTransferred;
@@ -628,9 +633,10 @@ void DHClient::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 
 void DHClient::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
-#ifdef _DEBUG
-	printf_s("[TCP 클라이언트] [%15s:%d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", IP.c_str(), PORT, (int)psOverlapped->m_Socket, dwNumberOfBytesTransferred);
-#endif
+	if (g_Debug_Option == DHDEBUG_DETAIL)
+	{
+		printf_s("[TCP 클라이언트] [%15s:%d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", IP.c_str(), PORT, (int)psOverlapped->m_Socket, dwNumberOfBytesTransferred);
+	}
 
 	Available_Overlapped->ResetObject(psOverlapped);
 }

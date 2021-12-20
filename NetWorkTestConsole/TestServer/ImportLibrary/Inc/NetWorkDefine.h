@@ -4,7 +4,7 @@
 // SERVER
 #define SERVER_OVERLAPPED_COUNT			10000	// 총 오버랩드 개수.
 #define SERVER_MEMORYPOOL_COUNT			2000	// 메모리풀 사용 개수.
-#define SERVER_TIME_EVENT_ms			1000	// Release 모드 시 일정 시간(ms 단위 설정) 주기로 서버정보 출력.				
+#define SERVER_TIME_EVENT_s			10	// Release 모드 시 일정 시간(s 단위 설정) 주기로 서버정보 출력.				
 // CLIENT
 #define CLIENT_THREAD_COUNT				1		// 클라이언트의 쓰레드 개수 (클라이언트의 쓰레드는 웬만하면.. 1개여도 충분!)
 #define CLIENT_IOCP_THREAD_COUNT		2		// 클라이언트의 IOCP 쓰레드 개수
@@ -22,6 +22,7 @@
 
 /// STATIC SIZE DEFINE
 #define IP_SIZE					16
+#define PACKET_TYPE_NONE		0				// 패킷의 타입이 아무것도 정의되지 않았을 때
 
 /// 공용 API 정의들.
 #include "DHNetWorkAPIDefine.h"

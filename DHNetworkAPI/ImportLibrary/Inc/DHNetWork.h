@@ -37,14 +37,14 @@ public:
 	virtual ~DHNetWork();
 
 	/// 초기화
-	virtual BOOL	Initialize() override;
+	virtual BOOL	Initialize(unsigned short _Debug_Option = DHDEBUG_NONE) override;
 	/// 서버일 경우 Accept 호출
-	virtual BOOL	Accept(unsigned short _Port, unsigned short _Max_User_Count) override;
+	virtual BOOL	Accept(unsigned short _Port, unsigned short _Max_User_Count, unsigned short _Work_Thread_Count) override;
 	/// 클라일 경우 Connect 호출
 	virtual BOOL	Connect(unsigned short _Port, std::string _IP) override;
 	/// 공통 Function
 	virtual BOOL	Recv(std::vector<Network_Message>& _Message_Vec) override;
-	virtual BOOL	Send(Packet_Header* _Packet, SOCKET _Socket = INVALID_SOCKET) override;
+	virtual BOOL	Send(Packet_Header* _Packet, int _SendType = SEND_TYPE_BROADCAST, SOCKET _Socket = INVALID_SOCKET) override;
 	virtual BOOL	Disconnect(SOCKET _Socket) override;
 	virtual BOOL	End() override;
 };

@@ -17,7 +17,12 @@ DHServer::~DHServer()
 	End();
 }
 
-BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
+void DHServer::SetDebug(unsigned short _Debug_Option)
+{
+	g_Debug_Option = _Debug_Option;
+}
+
+BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsigned short _Work_Thread_Count)
 {
 	/// 포트와 최대인원수 설정.
 	PORT = _Port; MAX_USER_COUNT = _Max_User_Count;
@@ -35,7 +40,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 
 	/// Worker Thread들은 보통 코어수 ~ 코어수*2 개 정도로 생성한다고 한다.
 	/// 시스템의 정보를 받아와서 코어수의 *2개만큼 WorkThread를 생성한다.
-	CreateWorkThread();
+	CreateWorkThread(_Work_Thread_Count);
 
 	/// 소켓의 구조체를 생성한다.
 	g_Listen_Socket = std::make_shared<SOCKET>();
@@ -153,12 +158,13 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	// Send 처리를 위한 쓰레드 생성
 	g_Send_Thread = new std::thread(std::bind(&DHServer::SendThread, this));
 
-#ifdef NDEBUG	
-	// 시작시간 정보
-	Start_Time = std::chrono::system_clock::now();
-	Prev_Time = Start_Time;
-	g_Time_Check_Thread = new std::thread(std::bind(&DHServer::TimeThread, this));
-#endif
+	if (g_Debug_Option == DHDEBUG_SIMPLE)
+	{
+		// 시작시간 정보
+		Start_Time = std::chrono::system_clock::now();
+		Prev_Time = Start_Time;
+		g_Time_Check_Thread = new std::thread(std::bind(&DHServer::TimeThread, this));
+	}
 
 	// 사용한 메모리 반환.
 	m_MemoryPool->ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
@@ -166,47 +172,35 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count)
 	return LOGIC_SUCCESS;
 }
 
-BOOL DHServer::Send(Packet_Header* Send_Packet, SOCKET _Socket /*= INVALID_SOCKET*/)
+BOOL DHServer::Send(Packet_Header* Send_Packet, int _SendType, SOCKET _Socket /*= INVALID_SOCKET*/)
 {
 	/// 모든 클라이언트에게 메세지를 보냄.
 	// 해당 소켓이 존재하지 않거나 패킷이 null 이면 에러.
 	assert(nullptr != Send_Packet);
 
 	// 등록되지 않은 패킷은 전송할 수 없다.
-	if (S2C_Packet_Type_None <= Send_Packet->Packet_Type)
+	if (PACKET_TYPE_NONE == (unsigned short)Send_Packet->Packet_Type)
 	{
 		return LOGIC_FAIL;
 	}
 
-	// 만약 소켓이 설정되지 않았다면 모두에게 메세지를 보냄.
-	if (_Socket == INVALID_SOCKET)
+	// BroadCast
+	if (_SendType == SEND_TYPE_BROADCAST)
 	{
 		return BroadCastMessage(Send_Packet);
 	}
-	else
+	// Target에게만 보냄
+	else if (_SendType == SEND_TYPE_TARGET)
 	{
-		// 받은 패킷을 복사해서 Send 큐에 넣음.
-		size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
-		Packet_Header* Copy_Packet = reinterpret_cast<Packet_Header*>(malloc(Send_Packet_Total_Size));
-		memcpy_s(Copy_Packet, Send_Packet_Total_Size, Send_Packet, Send_Packet_Total_Size);
-
-		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
-		Client_Map::const_accessor m_Accessor;
-
-		// 해당 소켓에 해당하는 클라이언트가 접속해 있는가?
-		if (g_Connected_Client.find(m_Accessor, _Socket) == false)
-		{
-			m_Accessor.release();
-			return LOGIC_FAIL;
-		}
-
-		Send_Data_Queue.push({ m_Accessor->second->m_Socket , Copy_Packet });
-
-		// 해당 자료에 대한 lock 해제.
-		m_Accessor.release();
+		return Target_Message(_Socket, Send_Packet);
+	}
+	// Target 제외 보냄.
+	else if (_SendType == SEND_TYPE_EXCEPT_TARGET)
+	{
+		return Except_Target_Message(_Socket, Send_Packet);
 	}
 
-	return LOGIC_SUCCESS;
+	return LOGIC_FAIL;
 }
 
 
@@ -226,9 +220,7 @@ BOOL DHServer::Recv(std::vector<Network_Message>& _Message_Vec)
 		// 빼온 데이터를 넣어서 보냄.
 		_Message_Vec.push_back(*_Net_Msg);
 
-		// 해제.
-		delete _Net_Msg->Packet;
-		delete _Net_Msg;
+		_Net_Msg = nullptr;
 	}
 
 	// 큐에 데이터를 다 빼면 TRUE 반환.
@@ -261,10 +253,11 @@ BOOL DHServer::End()
 	g_Send_Thread->join();
 	delete g_Send_Thread;
 
-#ifdef NDEBUG
-	g_Time_Check_Thread->join();
-	delete g_Time_Check_Thread;
-#endif
+	if (g_Debug_Option == DHDEBUG_SIMPLE)
+	{
+		g_Time_Check_Thread->join();
+		delete g_Time_Check_Thread;
+	}
 
 	for (auto k : g_Work_Thread)
 	{
@@ -324,14 +317,12 @@ BOOL DHServer::End()
 	return LOGIC_SUCCESS;
 }
 
-void DHServer::CreateWorkThread()
+void DHServer::CreateWorkThread(unsigned short _Work_Thread_Count)
 {
 	SYSTEM_INFO SystemInfo;
 	GetSystemInfo(&SystemInfo);
-	// Send Thread 를 따로 둬야하므로 CPU 코어 하나는 남겨둔다.
-	int iThreadCount = (SystemInfo.dwNumberOfProcessors - 1) * 2;
 
-	for (int i = 0; i < iThreadCount; i++)
+	for (int i = 0; i < _Work_Thread_Count; i++)
 	{
 		/// 클라이언트 작업을 하는 WorkThread들 생성.
 		std::thread* Client_Work = new std::thread(std::bind(&DHServer::WorkThread, this));
@@ -343,36 +334,37 @@ void DHServer::CreateWorkThread()
 
 void DHServer::TimeThread()
 {
-#ifdef NDEBUG
-	std::stringstream Time_SString;
-
-	// 시작 시간 변환.
-	auto Local_Time = std::chrono::system_clock::to_time_t(Start_Time);
-	Time_SString << std::put_time(std::localtime(&Local_Time), "%Y-%m-%d %X");
-	std::string Time_String(Time_SString.str());
-	const char* Time_String_Pointer = Time_String.c_str();
-
-	while (!g_Is_Exit)
+	if (g_Debug_Option == DHDEBUG_SIMPLE)
 	{
-		Current_Time = std::chrono::system_clock::now();
-		Elapsed_Time = Current_Time - Start_Time;
-		Time_Check_Point = Current_Time - Prev_Time;
+		std::stringstream Time_SString;
 
-		// 설정해둔 시간이 지났으면 
-		if (Time_Check_Point.count() > SERVER_TIME_EVENT_s)
+		// 시작 시간 변환.
+		auto Local_Time = std::chrono::system_clock::to_time_t(Start_Time);
+		Time_SString << std::put_time(std::localtime(&Local_Time), "%Y-%m-%d %X");
+		std::string Time_String(Time_SString.str());
+		const char* Time_String_Pointer = Time_String.c_str();
+
+		while (!g_Is_Exit)
 		{
-			printf_s("[TCP 서버] [시작시간 : %s] [경과시간 : %.1f s] \n [Recv Packet : %d] [Send Packet : %d] \n [Current User : %d 명] [Enter User : %d 명] [Exit User : %d 명]\n",
-				Time_String_Pointer, Elapsed_Time.count() * (double)1000, g_Recv_Total_Packet.load(), g_Send_Total_Packet.load(),
-				g_Connected_Client.size(), g_Enter_User_Count.load(), g_Exit_User_Count.load());
+			Current_Time = std::chrono::system_clock::now();
+			Elapsed_Time = Current_Time - Start_Time;
+			Time_Check_Point = Current_Time - Prev_Time;
 
-			Prev_Time = Current_Time;
+			// 설정해둔 시간이 지났으면 
+			if (Time_Check_Point.count() > SERVER_TIME_EVENT_s)
+			{
+				printf_s("[TCP 서버] [시작시간 : %s] [경과시간 : %.1f s] \n [Recv Packet : %d] [Send Packet : %d] \n [Current User : %d 명] [Enter User : %d 명] [Exit User : %d 명]\n",
+					Time_String_Pointer, Elapsed_Time.count(), g_Recv_Total_Packet.load(), g_Send_Total_Packet.load(),
+					g_Connected_Client.size(), g_Enter_User_Count.load(), g_Exit_User_Count.load());
+
+				Prev_Time = Current_Time;
+			}
+
+			Sleep(0);
 		}
 
-		Sleep(0);
+		delete Time_String_Pointer;
 	}
-	
-	delete Time_String_Pointer;
-#endif
 }
 
 void DHServer::WorkThread()
@@ -684,12 +676,15 @@ void DHServer::Delete_in_Socket_List(SOCKET _Socket)
 
 	m_Socket_Struct_Acc.release();
 
-#if NDEBUG
-	// 나간 유저수 체크.
-	g_Exit_User_Count.fetch_add(1, std::memory_order_relaxed);
-#else
-	printf_s("[TCP 서버] [%15s:%5d] [Socket_Number:%d] 클라이언트와 종료\n", Socket_IP.c_str(), Socket_PORT, Socket_Number);
-#endif
+	if (g_Debug_Option == DHDEBUG_SIMPLE)
+	{
+		// 나간 유저수 체크.
+		g_Exit_User_Count.fetch_add(1, std::memory_order_relaxed);
+	}
+	else if (g_Debug_Option == DHDEBUG_DETAIL)
+	{
+		printf_s("[TCP 서버] [%15s:%5d] [Socket_Number:%d] 클라이언트와 종료\n", Socket_IP.c_str(), Socket_PORT, Socket_Number);
+	}
 }
 
 bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped /* = nullptr */)
@@ -765,6 +760,67 @@ bool DHServer::BroadCastMessage(Packet_Header* Send_Packet)
 	return LOGIC_SUCCESS;
 }
 
+bool DHServer::Target_Message(SOCKET _Target, Packet_Header* Send_Packet)
+{
+	// 받은 패킷을 복사해서 Send 큐에 넣음.
+	size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
+	Packet_Header* Copy_Packet = reinterpret_cast<Packet_Header*>(malloc(Send_Packet_Total_Size));
+	memcpy_s(Copy_Packet, Send_Packet_Total_Size, Send_Packet, Send_Packet_Total_Size);
+
+	// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
+	Client_Map::const_accessor m_Accessor;
+
+	// 해당 소켓에 해당하는 클라이언트가 접속해 있는가?
+	if (g_Connected_Client.find(m_Accessor, _Target) == false)
+	{
+		m_Accessor.release();
+		return LOGIC_FAIL;
+	}
+
+	Send_Data_Queue.push({ m_Accessor->second->m_Socket , Copy_Packet });
+
+	// 해당 자료에 대한 lock 해제.
+	m_Accessor.release();
+
+	return LOGIC_SUCCESS;
+}
+
+bool DHServer::Except_Target_Message(SOCKET _Except_Target, Packet_Header* Send_Packet)
+{
+	size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
+
+	// 전체 클라이언트 소켓에 패킷 송신
+	for (auto itr : g_Connected_Client)
+	{
+		// 아직 Map 구조체에 대해 해당 값에 lock이 걸려있지 않음.
+		Client_Map::const_accessor m_Accessor;
+
+		if (g_Connected_Client.find(m_Accessor, itr.first) == false)
+		{
+			m_Accessor.release();
+			return LOGIC_FAIL;
+		}
+
+		// 해당하는 소켓은 메세지를 보내지 않는다.
+		if (m_Accessor->first == _Except_Target)
+		{
+			m_Accessor.release();
+			continue;
+		}
+
+		// 받은 패킷을 복사해서 Send 큐에 넣음.
+		Packet_Header* Copy_Packet = reinterpret_cast<Packet_Header*>(malloc(Send_Packet_Total_Size));
+		memcpy_s(Copy_Packet, Send_Packet_Total_Size, Send_Packet, Send_Packet_Total_Size);
+
+		Send_Data_Queue.push({ m_Accessor->first , Copy_Packet });
+
+		// 해당 자료에 대한 lock 해제.
+		m_Accessor.release();
+	}
+
+	return LOGIC_SUCCESS;
+}
+
 bool DHServer::BackUp_Overlapped(Overlapped_Struct* psOverlapped)
 {
 	if ((psOverlapped->m_Processed_Packet_Size + psOverlapped->m_Data_Size) > MAX_PACKET_SIZE)
@@ -788,7 +844,7 @@ bool DHServer::BackUp_Overlapped(Overlapped_Struct* psOverlapped)
 bool DHServer::Push_RecvData(Packet_Header* _Data_Packet, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct, size_t _Pull_Size)
 {
 	// 패킷에 아무런 설정을 하지않고 보냈다면 잘못 된 패킷이다.
-	if (C2S_Packet_Type_None <= (unsigned int)_Data_Packet->Packet_Type)
+	if (PACKET_TYPE_NONE == (unsigned short)_Data_Packet->Packet_Type)
 	{
 		// 받은 데이터 삭제.
 		delete _Data_Packet;
@@ -851,12 +907,15 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 		return;
 	}
 
-#if NDEBUG
-	// 받은 데이터 총량 측정.
-	g_Recv_Total_Packet.fetch_add(dwNumberOfBytesTransferred, std::memory_order_relaxed);
-#else
-	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 수신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
-#endif
+	if (g_Debug_Option == DHDEBUG_SIMPLE)
+	{
+		// 받은 데이터 총량 측정.
+		g_Recv_Total_Packet.fetch_add(dwNumberOfBytesTransferred, std::memory_order_relaxed);
+	}
+	else if (g_Debug_Option == DHDEBUG_DETAIL)
+	{
+		printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 수신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
+	}
 
 	// 이번에 받은 데이터 양
 	psOverlapped->m_Data_Size = dwNumberOfBytesTransferred;
@@ -920,12 +979,15 @@ void DHServer::IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Stru
 
 void DHServer::IOFunction_Send(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket)
 {
-#if NDEBUG
-	// 보낸 데이터 총량 측정.
-	g_Send_Total_Packet.fetch_add(dwNumberOfBytesTransferred, std::memory_order_relaxed);
-#else
-	printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
-#endif
+	if (g_Debug_Option == DHDEBUG_SIMPLE)
+	{
+		// 보낸 데이터 총량 측정.
+		g_Send_Total_Packet.fetch_add(dwNumberOfBytesTransferred, std::memory_order_relaxed);
+	}
+	else if (g_Debug_Option == DHDEBUG_DETAIL)
+	{
+		printf_s("[TCP 서버] [%15s:%5d] [SOCKET : %d] [%d Byte] 패킷 송신 완료\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket, dwNumberOfBytesTransferred);
+	}
 
 	Available_Overlapped->ResetObject(psOverlapped);
 }
@@ -983,12 +1045,15 @@ void DHServer::IOFunction_Accept(Overlapped_Struct* psOverlapped)
 		return;
 	}
 
-#if NDEBUG
-	// 들어온 유저수 체크.
-	g_Enter_User_Count.fetch_add(1, std::memory_order_relaxed);
-#else
-	printf_s("[TCP 서버] [%15s:%5d] [Socket : %d] 클라이언트 접속\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket);
-#endif
+	if (g_Debug_Option == DHDEBUG_SIMPLE)
+	{
+		// 들어온 유저수 체크.
+		g_Enter_User_Count.fetch_add(1, std::memory_order_relaxed);
+	}
+	else if (g_Debug_Option == DHDEBUG_DETAIL)
+	{
+		printf_s("[TCP 서버] [%15s:%5d] [Socket : %d] 클라이언트 접속\n", psSocket->IP.c_str(), psSocket->PORT, (int)psSocket->m_Socket);
+	}
 
 	/// WSARecv를 걸어둬야 정보를 받을 수 있겠죠?!
 	if (!Reserve_WSAReceive(psSocket->m_Socket))

@@ -61,18 +61,20 @@ private:
 	HANDLE	g_IOCP = nullptr;
 	// 전체 종료 플래그
 	BOOL	g_Is_Exit = FALSE;
+	// 디버깅 옵션
+	BOOL	g_Debug_Option = DHDEBUG_NONE;
 
 public:
 	/// 기본생성자로 쓰일 부분..
 	DHServer();
 	virtual ~DHServer();
 
-
 public:
+	virtual void SetDebug(unsigned short _Debug_Option);
 	// 이 네트워크가 서버로 사용한다는 것을 알려주는 플래그나 다름없다. (Accept는 호스트 고유의 함수)
-	virtual BOOL Accept(unsigned short _Port, unsigned short _Max_User_Count) override;
+	virtual BOOL Accept(unsigned short _Port, unsigned short _Max_User_Count, unsigned short _Work_Thread_Count) override;
 	// SOCKET 이 Invaild 라면 모든 클라이언트에게 메세지 전송. / 그 외에는 해당 소켓에 메세지 전송.
-	virtual BOOL Send(Packet_Header* Send_Packet, SOCKET _Socket = INVALID_SOCKET) override;
+	virtual BOOL Send(Packet_Header* Send_Packet, int _SendType, SOCKET _Socket = INVALID_SOCKET) override;
 	virtual BOOL Recv(std::vector<Network_Message>& _Message_Vec) override;
 	virtual BOOL Disconnect(SOCKET _Socket) override;
 	virtual BOOL End() override;
@@ -84,7 +86,7 @@ private:
 	// Send Queue를 관리하면서 데이터를 보낼 쓰레드
 	void SendThread();
 	// WorkThread를 CLIENT_THREAD_COUNT 개수만큼 생성.
-	void CreateWorkThread();
+	void CreateWorkThread(unsigned short _Work_Thread_Count);
 	// 시간 측정용 Thread Function
 	void TimeThread();
 
@@ -98,15 +100,21 @@ private:
 	// 해당 소켓이 현재 접속해있는지 검색하는 함수.
 	bool FindSocketOnClient(SOCKET _Target);
 
-	/// Recv , Send Function
+	/// Recv Function
 	// WSAReceive를 걸어두는 작업. ( 한번은 걸어둬야 처리에 대한 응답이 왔을 때 대응 가능 )
 	bool Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped = nullptr);
-	// 모든 소켓에 메세지를 보내는 함수.
-	bool BroadCastMessage(Packet_Header* Send_Packet);
-	// Overlapped에 이전에 들어온 데이터를 백업하고 초기화하는 함수.
-	bool BackUp_Overlapped(Overlapped_Struct* psOverlapped);
 	// 하나의 데이터를 받아오면 수신큐에 넣는 부분.
 	bool Push_RecvData(Packet_Header* _Data_Packet, Socket_Struct* _Socket_Struct, Overlapped_Struct* _Overlapped_Struct, size_t _Pull_Size);
+	// Overlapped에 이전에 들어온 데이터를 백업하고 초기화하는 함수.
+	bool BackUp_Overlapped(Overlapped_Struct* psOverlapped);
+
+	/// Send Function
+	// 모든 소켓에 메세지를 보내는 함수.
+	bool BroadCastMessage(Packet_Header* Send_Packet);
+	// 해당 소켓에 메세지 보냄
+	bool Target_Message(SOCKET _Target, Packet_Header* Send_Packet);
+	// 해당 소켓 제외 메세지 보냄.
+	bool Except_Target_Message(SOCKET _Except_Target, Packet_Header* Send_Packet);
 
 	/// IOType 에 대한 처리함수들.
 	void IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket);
@@ -114,7 +122,6 @@ private:
 	void IOFunction_Accept(Overlapped_Struct* psOverlapped);
 	void IOFunction_Disconnect(Overlapped_Struct* psOverlapped);
 
-#ifdef NDEBUG
 private:
 	// 10초마다 출력할 디버깅용 데이터들.. (Release 모드 시..)
 	std::atomic<int>	 g_Recv_Total_Packet = 0;	// 들어온 패킷들 총 양
@@ -131,6 +138,5 @@ private:
 
 	// 경과 시간 및 디버깅 데이터를 체크하기 위한 쓰레드. (Release 모드 시 생성)
 	std::thread* g_Time_Check_Thread = nullptr;
-#endif
 };
 

@@ -36,11 +36,11 @@ public:
 	DHNetworkAPIBase* Set_NetWork = nullptr;
 
 	/// 기본적인 기능들.. 
-	BOOL	Initialize(DHNetWork_Name _Using_NetWork_Name);
-	BOOL	Accept(unsigned short _Port, unsigned short _Max_User_Count);
+	BOOL	Initialize(DHNetWork_Name _Using_NetWork_Name, unsigned short _Debug_Option = 0);
+	BOOL	Accept(unsigned short _Port, unsigned short _Max_User_Count, unsigned short _Work_Thread_Count);
 	BOOL	Connect(unsigned short _Port, std::string _IP);
 	BOOL	Recv(std::vector<Network_Message>& _Message_Vec);
-	BOOL	Send(Packet_Header* _Packet, SOCKET _Socket = -1);
+	BOOL	Send(Packet_Header* _Packet, int _SendType = 0, SOCKET _Socket = -1);
 	BOOL	Disconnect(SOCKET _Socket);
 	BOOL	End();
 

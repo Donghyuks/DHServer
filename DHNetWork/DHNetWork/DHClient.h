@@ -28,13 +28,17 @@ private:
 	HANDLE	g_IOCP = nullptr;
 	BOOL	g_Is_Exit = FALSE;
 
+	// 디버깅 옵션
+	BOOL	g_Debug_Option = DHDEBUG_NONE;
+
 public:
 	// 기본생성자로 쓰일 부분..
 	DHClient();
 	virtual ~DHClient();
 
 public:
-	virtual BOOL Send(Packet_Header* Send_Packet, SOCKET _Socket = INVALID_SOCKET) override;
+	virtual void SetDebug(unsigned short _Debug_Option);
+	virtual BOOL Send(Packet_Header* Send_Packet, int _SendType, SOCKET _Socket = INVALID_SOCKET) override;
 	virtual BOOL Recv(std::vector<Network_Message>& _Message_Vec) override;
 	virtual BOOL Connect(unsigned short _Port, std::string _IP) override;
 	virtual BOOL End() override;

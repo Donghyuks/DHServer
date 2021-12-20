@@ -121,22 +121,13 @@ struct Overlapped_Struct : public WSAOVERLAPPED
 /// 사용할 패킷 구조체들 1바이트로 정렬을 한다.
 #pragma pack(push , 1)
 
-enum C2S_Packet_Type
-{
-	//									TYPE				INDEX
-	C2S_Packet_Type_Message = 0,	/// 메세지 타입			1
-	C2S_Packet_Type_Unit,			/// 유닛 데이터 타입		2
-	C2S_Packet_Type_World,			/// 게임 월드 데이터		3
-	C2S_Packet_Type_None,			/// Default 타입			0
-};
-
 struct C2S_Packet : public Packet_Header
 {
 	C2S_Packet()
 	{
 		// 패킷의 총 사이즈는, 현재 C2S_Packet 구조체의 크기이다.
 		Packet_Size = sizeof(*this) - sizeof(Packet_Size);
-		Packet_Type = C2S_Packet_Type_None;
+		Packet_Type = PACKET_TYPE_NONE;
 	}
 
 	// 서버로 보낼 데이터를 담을 Packet_Buffer 로 구성되어있음.
@@ -147,22 +138,13 @@ struct C2S_Packet : public Packet_Header
 ///			서버 to 클라이언트 패킷들의 타입을 정의한다.				   ///
 //////////////////////////////////////////////////////////////////////////
 
-enum S2C_Packet_Type
-{
-	//									TYPE				INDEX
-	S2C_Packet_Type_Message = 0,	/// 메세지 타입			1
-	S2C_Packet_Type_Unit,			/// 유닛 데이터 타입		2
-	S2C_Packet_Type_World,			/// 게임 월드 데이터		3
-	S2C_Packet_Type_None,			/// Default 타입			0
-};
-
 struct S2C_Packet : public Packet_Header
 {
 	S2C_Packet()
 	{
 		// 패킷의 총 사이즈는, 현재 C2S_Packet 구조체의 크기이다.
 		Packet_Size = sizeof(*this) - sizeof(Packet_Size);
-		Packet_Type = S2C_Packet_Type_None;
+		Packet_Type = PACKET_TYPE_NONE;
 	}
 
 	// 데이터를 담을 Packet_Buffer 로 구성되어있음.

@@ -22,6 +22,7 @@
 
 /// STATIC SIZE DEFINE
 #define IP_SIZE					16
+#define PACKET_TYPE_NONE		0				// 패킷의 타입이 아무것도 정의되지 않았을 때
 
 /// 공용 API 정의들.
 #include "DHNetWorkAPIDefine.h"
