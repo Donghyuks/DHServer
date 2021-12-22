@@ -108,13 +108,13 @@ private:
 	// Overlapped에 이전에 들어온 데이터를 백업하고 초기화하는 함수.
 	bool BackUp_Overlapped(Overlapped_Struct* psOverlapped);
 
-	/// Send Function
+	/// Send Function ( Return 값은 각각 보낸 유저의 수를 반환한다. )
 	// 모든 소켓에 메세지를 보내는 함수.
-	bool BroadCastMessage(Packet_Header* Send_Packet);
+	BOOL BroadCastMessage(Packet_Header* Send_Packet);
 	// 해당 소켓에 메세지 보냄
-	bool Target_Message(SOCKET _Target, Packet_Header* Send_Packet);
+	BOOL Target_Message(SOCKET _Target, Packet_Header* Send_Packet);
 	// 해당 소켓 제외 메세지 보냄.
-	bool Except_Target_Message(SOCKET _Except_Target, Packet_Header* Send_Packet);
+	BOOL Except_Target_Message(SOCKET _Except_Target, Packet_Header* Send_Packet);
 
 	/// IOType 에 대한 처리함수들.
 	void IOFunction_Recv(DWORD dwNumberOfBytesTransferred, Overlapped_Struct* psOverlapped, Socket_Struct* psSocket);

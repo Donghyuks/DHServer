@@ -730,8 +730,9 @@ bool DHServer::Reserve_WSAReceive(SOCKET socket, Overlapped_Struct* psOverlapped
 	return TRUE;
 }
 
-bool DHServer::BroadCastMessage(Packet_Header* Send_Packet)
+BOOL DHServer::BroadCastMessage(Packet_Header* Send_Packet)
 {
+	int Send_User_Count = 0;
 	size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
 
 	// 전체 클라이언트 소켓에 패킷 송신
@@ -755,12 +756,14 @@ bool DHServer::BroadCastMessage(Packet_Header* Send_Packet)
 
 		// 해당 자료에 대한 lock 해제.
 		m_Accessor.release();
+		// 메세지를 보낸 유저의 수를 측정.
+		Send_User_Count++;
 	}
 
-	return LOGIC_SUCCESS;
+	return Send_User_Count;
 }
 
-bool DHServer::Target_Message(SOCKET _Target, Packet_Header* Send_Packet)
+BOOL DHServer::Target_Message(SOCKET _Target, Packet_Header* Send_Packet)
 {
 	// 받은 패킷을 복사해서 Send 큐에 넣음.
 	size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
@@ -785,8 +788,9 @@ bool DHServer::Target_Message(SOCKET _Target, Packet_Header* Send_Packet)
 	return LOGIC_SUCCESS;
 }
 
-bool DHServer::Except_Target_Message(SOCKET _Except_Target, Packet_Header* Send_Packet)
+BOOL DHServer::Except_Target_Message(SOCKET _Except_Target, Packet_Header* Send_Packet)
 {
+	int Send_User_Count = 0;
 	size_t Send_Packet_Total_Size = PACKET_HEADER_SIZE + Send_Packet->Packet_Size;
 
 	// 전체 클라이언트 소켓에 패킷 송신
@@ -816,9 +820,11 @@ bool DHServer::Except_Target_Message(SOCKET _Except_Target, Packet_Header* Send_
 
 		// 해당 자료에 대한 lock 해제.
 		m_Accessor.release();
+		// 메세지를 보낸 유저의 수를 측정.
+		Send_User_Count++;
 	}
 
-	return LOGIC_SUCCESS;
+	return Send_User_Count;
 }
 
 bool DHServer::BackUp_Overlapped(Overlapped_Struct* psOverlapped)

@@ -27,6 +27,7 @@ class NETWORK_DLL DHNetWork : public DHNetworkAPIBase
 private:
 	/// 클라이언트와 서버셋팅.
 	NetWorkBase* m_NetWork = nullptr;
+	unsigned short g_Debug_Option = DHDEBUG_NONE;
 	int Current_Type = TYPE_NONSET;
 
 private:
