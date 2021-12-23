@@ -1,29 +1,37 @@
 #pragma once
 
-#ifdef C2DB_EXPORTS
-#define C2DB_DLL __declspec(dllexport)
+#ifdef DHDB_EXPORTS
+#define DHDB_DLL __declspec(dllexport)
 #else
-#define C2DB_DLL __declspec(dllimport)
-#pragma comment(lib,"C2DB.lib")
+#define DHDB_DLL __declspec(dllimport)
+
+#ifdef _DEBUG
+#pragma comment(lib,"DHDB_x64d")
+#else
+#pragma comment(lib,"DHDB_x64r")
+#endif
 #endif
 
 #include <string>
-class C2DBCore;
+#include <vector>
+class DHDBCore;
 
-class C2DB_DLL C2DB
+class DHDB_DLL DHDB
 {
 private:
-	C2DBCore* m_C2DB = nullptr;
+	DHDBCore* m_C2DB = nullptr;
 
 public:
-	C2DB();
-	~C2DB();
+	DHDB();
+	~DHDB();
 
 public:
 	bool ConnectDB(std::string _Server_IP, std::string _User_ID, std::string _User_Password, std::string _DB_Name, unsigned int _Port);
 	bool SearchID(std::string _User_ID);
 	bool ComparePassword(std::string _User_ID, std::string _User_Password);
 	bool CreateNewAccount(std::string _User_ID, std::string _User_Password);
+	bool GetFriendList(std::string _User_ID, std::vector<std::string>& _Friend_List);
+	unsigned int GetIdentifier(std::string _User_ID);
 	void DeleteAccount(std::string _User_ID);
 };
 
