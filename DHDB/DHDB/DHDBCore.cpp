@@ -19,6 +19,53 @@ DHDBCore::~DHDBCore()
 	mysql_close(m_MYSQL);
 }
 
+bool DHDBCore::QueryDB(std::string _Query, int* _Fields_Count, std::vector<std::string>& _Query_Data)
+{
+	if (Is_Connect)
+	{
+		// 쿼리실행 실패시
+		if (mysql_query(m_MYSQL, _Query.c_str()))
+		{
+			return false;
+		}
+		// 쿼리실행 성공시
+		else
+		{
+			// 쿼리저장
+			MYSQL_RES* Query_Result = mysql_store_result(m_MYSQL);
+
+			// 해당데이터가 존재하지 않는다면
+			if (!Query_Result)
+			{
+				mysql_free_result(Query_Result);
+				return false;
+			}
+			else
+			{
+				// 행에 대한 데이터를 받아옴.
+				MYSQL_ROW Row_Data;
+				// 조회된 데이터에서 칼럼의 개수.
+				*_Fields_Count = mysql_num_fields(Query_Result);
+
+				// 해당 데이터들을 모두 순회한다.
+				while (Row_Data = mysql_fetch_row(Query_Result))
+				{
+					for (int i = 0; i < *_Fields_Count; i++)
+					{
+						std::string _Data(Row_Data[i]);
+
+						// 순회한 데이터를 넣어서 보내줌.
+						_Query_Data.push_back(_Data);
+					}
+				}
+
+				mysql_free_result(Query_Result);
+				return true;
+			}
+		}
+	}
+}
+
 bool DHDBCore::ConnectDB(std::string _Server_IP, std::string _User_ID, std::string _User_Password, std::string _DB_Name, unsigned int _Port)
 {
 	if (!mysql_real_connect(
@@ -142,7 +189,7 @@ bool DHDBCore::CreateNewAccount(std::string _User_ID, std::string _User_Password
 {
 	if (Is_Connect)
 	{
-		std::string _Query = INSERTSTRING + std::string("LOGIN VALUES ('") + _User_ID + std::string("', '") + _User_Password + std::string("')");
+		std::string _Query = INSERTSTRING + std::string("LOGIN (ID,PASSWORD) VALUES ('") + _User_ID + std::string("', '") + _User_Password + std::string("')");
 		
 		// 쿼리실행 실패시
 		if (mysql_query(m_MYSQL, _Query.c_str()))
@@ -157,11 +204,106 @@ bool DHDBCore::CreateNewAccount(std::string _User_ID, std::string _User_Password
 	}
 }
 
+bool DHDBCore::FriendRequest(std::string _User_ID, std::string _Friend_ID)
+{
+	if (Is_Connect)
+	{
+		// 이미 친구등록(요청)이 되어있는지 검색한다.
+		std::string Find_Query = SELECTSTRING + std::string("* FROM FRIEND WHERE USERID='") + _User_ID  + std::string("' AND FRIENDID ='") + _Friend_ID + std::string("'");
+		// 쿼리검색
+		mysql_query(m_MYSQL, Find_Query.c_str());
+		MYSQL_RES* Query_Result = mysql_store_result(m_MYSQL);
+
+		// 해당데이터가 이미 존재한다면 생성하지 않는다.
+		if (Query_Result->row_count != 0)
+		{
+			mysql_free_result(Query_Result);
+			return true;
+		}
+
+		mysql_free_result(Query_Result);
+
+		// 친구등록이 되어있지 않다면 해당 친구요청을 등록한다.
+		std::string _Query = INSERTSTRING + std::string("FRIEND (USERID,FRIENDID,ACCEPTFLAG) VALUES ('") + _User_ID + std::string("', '") + _Friend_ID + std::string("', 0)");
+
+		// 쿼리실행 실패시
+		if (mysql_query(m_MYSQL, _Query.c_str()))
+		{
+			return false;
+		}
+		else
+		{
+			_Query = INSERTSTRING + std::string("FRIEND (USERID,FRIENDID,ACCEPTFLAG) VALUES ('") + _Friend_ID + std::string("', '") + _User_ID + std::string("', 0)");
+
+			if (mysql_query(m_MYSQL, _Query.c_str()))
+			{
+				// 넣었던 데이터 삭제
+				_Query = DELETESTRING + std::string("FRIEND WHERE USERID='") + _User_ID + std::string("' AND FRIENDID ='") + _Friend_ID + std::string("'");
+				mysql_query(m_MYSQL, _Query.c_str());
+				return false;
+			}
+			else
+			{
+				return true;
+			}
+		}
+	}
+}
+
+bool DHDBCore::FriendAccept(std::string _User_ID, std::string _Friend_ID)
+{
+	if (Is_Connect)
+	{
+		// 이미 친구요청이 되어있는지 검색한다.
+		std::string Find_Query = SELECTSTRING + std::string("* FROM FRIEND WHERE USERID='") + _User_ID + std::string("' AND FRIENDID ='") + _Friend_ID + std::string("'");
+		// 쿼리검색
+		mysql_query(m_MYSQL, Find_Query.c_str());
+		MYSQL_RES* Query_Result = mysql_store_result(m_MYSQL);
+
+		// 서로 친구요청을 받은적이 없는 경우 false 리턴.
+		if (Query_Result->row_count == 0)
+		{
+			mysql_free_result(Query_Result);
+			return false;
+		}
+
+		mysql_free_result(Query_Result);
+
+		// 친구요청이 온적이 있다면 해당 관계의 친구들의 값을 바꿔준다.
+		std::string _Query = UPDATESTRING + std::string("FRIEND SET ACCEPTFLAG=1 WHERE USERID='") + _User_ID + std::string("' AND FRIENDID ='") + _Friend_ID + std::string("'");
+
+		// 쿼리실행 실패시
+		if (mysql_query(m_MYSQL, _Query.c_str()))
+		{
+			return false;
+		}
+		else
+		{
+			_Query = UPDATESTRING + std::string("FRIEND SET ACCEPTFLAG=1 WHERE USERID='") + _Friend_ID + std::string("' AND FRIENDID ='") + _User_ID + std::string("'");
+
+			if (mysql_query(m_MYSQL, _Query.c_str()))
+			{
+				// 넣었던 데이터 삭제
+				_Query = DELETESTRING + std::string("FRIEND WHERE USERID='") + _User_ID + std::string("' AND FRIENDID ='") + _Friend_ID + std::string("'");
+				mysql_query(m_MYSQL, _Query.c_str());
+				return false;
+			}
+			else
+			{
+				return true;
+			}
+		}
+	}
+
+
+	return true;
+}
+
 bool DHDBCore::GetFriendList(std::string _User_ID, std::vector<std::string>& _Friend_List)
 {
 	if (Is_Connect)
 	{
-		std::string _Query = SELECTSTRING + std::string("FRIENDID FROM FRIEND WHERE USERID='") + _User_ID + std::string("'");
+		std::string _Query = SELECTSTRING + std::string("ACCEPTFLAG,FRIENDID FROM FRIEND WHERE USERID='") + _User_ID + std::string("'");
 
 		// 쿼리검색
 		mysql_query(m_MYSQL, _Query.c_str());
@@ -171,6 +313,7 @@ bool DHDBCore::GetFriendList(std::string _User_ID, std::vector<std::string>& _Fr
 		// 해당데이터가 존재하지 않는다면
 		if (!Query_Result)
 		{
+			mysql_free_result(Query_Result);
 			return false;
 		}
 		// 해당 아이디에 대한 친구들을 받아온다.
@@ -184,13 +327,12 @@ bool DHDBCore::GetFriendList(std::string _User_ID, std::vector<std::string>& _Fr
 			// 해당 데이터들을 모두 순회한다.
 			while (Row_Data = mysql_fetch_row(Query_Result))
 			{
-				for (int i = 0; i < Fields_Count; i++)
-				{
-					std::string _Data(Row_Data[i]);
-					
-					// 데이터를 넣어줌.
-					_Friend_List.push_back(_Data);
-				}
+				// 만약 아직 친구관계가 아니라면 계속 진행..
+				if (*Row_Data[0] == false) continue;
+
+				std::string _Data(Row_Data[1]);
+
+				_Friend_List.push_back(_Data);
 			}
 
 			mysql_free_result(Query_Result);

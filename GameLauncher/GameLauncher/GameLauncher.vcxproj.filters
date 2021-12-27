@@ -26,6 +26,9 @@
     <Filter Include="GameLauncher">
       <UniqueIdentifier>{3b7de31c-f5c4-4150-8617-c35a567916e3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="PortIP">
+      <UniqueIdentifier>{79d0da6d-c1e3-4050-aa68-17fcce61092f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="GameLauncher.qrc">
@@ -72,5 +75,10 @@
     <QtMoc Include="AccountCreate.h">
       <Filter>LoginLauncher\AccountCreate</Filter>
     </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\ImportLibrary\Inc\PortIPDefine.h">
+      <Filter>PortIP</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
