@@ -22,6 +22,7 @@ GamePlayLauncher::GamePlayLauncher(DHNetWorkAPI* m_NetWork, QDialog* parent)
 
 	// 트리 리스트의 칼럼 간격조정
 	ui.treeWidget->setColumnWidth(0, 150);
+	ui.treeWidget->setHeaderHidden(true);
 
 	// Html 파일을 읽어서 보여줌 (패치노트)
 	QFile HtmlFile("PathNote.htm");
@@ -46,6 +47,9 @@ void GamePlayLauncher::ThreadCreate()
 
 void GamePlayLauncher::RecvServerPacket()
 {
+	// 처음에 데이터를 받아와서 Tree 위젯에 화살표를 만들기위함.. (다른데서 데이터를 한번이라도 추가해야 생기더라구요..)
+	static bool _Is_Data_Init = false;
+	
 	// Recv 데이터 받아오기.
 	std::vector<Network_Message> Msg_Vec;
 	S2C_Packet* Recv_Packet = nullptr;
@@ -76,9 +80,16 @@ void GamePlayLauncher::RecvServerPacket()
 					for (int i = 0; i < Recv_Friend_State_Vector->size(); i++)
 					{
 						auto Friend_Data = Recv_Friend_State_Vector->Get(i);
-
 						auto _User_ID = Friend_Data->id()->str();
 						auto _User_State = Friend_Data->state();
+
+						if (_Is_Data_Init == false)
+						{
+							_Is_Data_Init = true;
+							addTreeChild(ConvertKR("Eater"), ConvertKR(_User_ID.c_str()), ConvertKR(""), ColColorType::Ingame_Green);
+							addTreeChild(ConvertKR("오프라인"), ConvertKR(_User_ID.c_str()), ConvertKR(""), ColColorType::Offline_Gray);
+							addTreeChild(ConvertKR("온라인 친구"), ConvertKR(_User_ID.c_str()), ConvertKR(""), ColColorType::Online_Blue);
+						}
 
 						// 각 유저의 상태에 따라 처리해준다.
 						if (_User_State == USER_OFFLINE)
@@ -94,13 +105,14 @@ void GamePlayLauncher::RecvServerPacket()
 						else if (_User_State == USER_IN_GAME)
 						{
 							ExceptRemoveTreeChild(ConvertKR("Eater"), ConvertKR(_User_ID.c_str()));
-							addTreeChild(ConvertKR("Eater"), ConvertKR(_User_ID.c_str()), ConvertKR("게임중"), ColColorType::Online_Blue);
+							addTreeChild(ConvertKR("Eater"), ConvertKR(_User_ID.c_str()), ConvertKR("게임중"), ColColorType::Ingame_Green);
 						}
 						else if (_User_State == USER_IN_LOBBY)
 						{
 							ExceptRemoveTreeChild(ConvertKR("Eater"), ConvertKR(_User_ID.c_str()));
-							addTreeChild(ConvertKR("Eater"), ConvertKR(_User_ID.c_str()), ConvertKR("로비"), ColColorType::Online_Blue);
+							addTreeChild(ConvertKR("Eater"), ConvertKR(_User_ID.c_str()), ConvertKR("로비"), ColColorType::Ingame_Green);
 						}
+
 					}
 
 				}

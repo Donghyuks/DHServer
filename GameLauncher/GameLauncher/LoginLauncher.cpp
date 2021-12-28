@@ -10,7 +10,7 @@ LoginLauncher::LoginLauncher(QWidget *parent)
     // 로그인 서버에 연결
     m_Login_NetWork = new DHNetWorkAPI();
     m_Login_NetWork->Initialize(DHNetWork_Name::DHNet);
-    while (!m_Login_NetWork->Connect(LOGIN_SERVER_PORT, LOCAL_CONNECT_IP)) { Sleep(0); }
+    while (!m_Login_NetWork->Connect(LOGIN_SERVER_PORT, SERVER_CONNECT_IP)) { Sleep(0); }
 
     codec = QTextCodec::codecForName("EUC-KR");	// 한글코덱
     ui.setupUi(this);
