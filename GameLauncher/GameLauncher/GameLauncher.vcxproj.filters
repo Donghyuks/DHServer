@@ -37,6 +37,12 @@
     <QtUic Include="GameLauncher.ui">
       <Filter>Form Files</Filter>
     </QtUic>
+    <QtRcc Include="..\Resource\LauncherUI.qrc">
+      <Filter>Resource Files</Filter>
+    </QtRcc>
+    <QtRcc Include="..\Resource\LoginUI.qrc">
+      <Filter>Resource Files</Filter>
+    </QtRcc>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

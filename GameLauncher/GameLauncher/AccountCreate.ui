@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>440</width>
-    <height>340</height>
+    <width>551</width>
+    <height>435</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,213 +16,163 @@
   <property name="styleSheet">
    <string notr="true">*{
  font-family:century gothic;
+ font-size:14px;
 }
 
 #AccountCreate
 {
- background:url(:/GameLauncher/Login_BG.png);
+ background:url(:/LoginUI/Singup_Background.png);
 }
-
-#Label_Comment
+</string>
+  </property>
+  <widget class="QLineEdit" name="Edit_Name">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>150</y>
+     <width>330</width>
+     <height>56</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QLineEdit
 {
- color:red;
-}
-
-QFrame
-{
- background:#333;
- border-radius:20px;
-}
-
-QLabel
-{
- color:white;
- font-size:23px;
-}
-
-QLineEdit
-{
- font-size:23px;
  background:transparent;
  border:none;
- color:#717072;
- border-bottom:1px solid #717072;
-}
-
-QPushButton
+ font-size:24px;
+ color:#979797;
+}</string>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="maxLength">
+    <number>20</number>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="Edit_Password">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>225</y>
+     <width>330</width>
+     <height>56</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QLineEdit
 {
- 	background:#E04848;
-	border: solid;
-	color:white;
- 	font-size:30px;
-	border-radius:20px;
+ background:transparent;
+ border:none;
+ font-size:24px;
+ color:#979797;
+}</string>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="maxLength">
+    <number>20</number>
+   </property>
+   <property name="echoMode">
+    <enum>QLineEdit::Password</enum>
+   </property>
+  </widget>
+  <widget class="QLabel" name="Label_Comment">
+   <property name="geometry">
+    <rect>
+     <x>130</x>
+     <y>290</y>
+     <width>351</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>century gothic</family>
+     <pointsize>-1</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QLabel
+{
+	background:transparent;
+	color:#952e25;
+}</string>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="Create_Button">
+   <property name="geometry">
+    <rect>
+     <x>230</x>
+     <y>330</y>
+     <width>121</width>
+     <height>48</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>century gothic</family>
+     <pointsize>-1</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QPushButton
+{
+	background:url(&quot;:/LoginUI/Signup_Accept.png&quot;);
+	border:none;
 }
 
 QPushButton:hover
 {
- color:#333;
- border: solid;
- border-radius:30px;
- background:#5D9657;
+	background:url(&quot;:/LoginUI/Signup_Accept_Over.png&quot;);
+	border:none;
 }</string>
-  </property>
-  <widget class="QFrame" name="frame">
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="Cancle_Button">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>20</y>
-     <width>400</width>
-     <height>300</height>
+     <x>360</x>
+     <y>330</y>
+     <width>121</width>
+     <height>48</height>
     </rect>
    </property>
-   <property name="frameShape">
-    <enum>QFrame::StyledPanel</enum>
+   <property name="styleSheet">
+    <string notr="true">QPushButton
+{
+	background:url(&quot;:/LoginUI/Signup_Cancle.png&quot;);
+	border:none;
+}
+
+QPushButton:hover
+{
+	background:url(&quot;:/LoginUI/Signup_Cancle_Over.png&quot;);
+	border:none;
+}</string>
    </property>
-   <property name="frameShadow">
-    <enum>QFrame::Raised</enum>
+   <property name="text">
+    <string/>
    </property>
-   <widget class="QPushButton" name="Create_Button">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>230</y>
-      <width>380</width>
-      <height>60</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>century gothic</family>
-      <pointsize>-1</pointsize>
-      <weight>75</weight>
-      <bold>true</bold>
-     </font>
-    </property>
-    <property name="text">
-     <string>CreateAccount</string>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="Edit_Name">
-    <property name="geometry">
-     <rect>
-      <x>140</x>
-      <y>30</y>
-      <width>250</width>
-      <height>50</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-    <property name="maxLength">
-     <number>20</number>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="Edit_Password">
-    <property name="geometry">
-     <rect>
-      <x>140</x>
-      <y>110</y>
-      <width>250</width>
-      <height>50</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-    <property name="maxLength">
-     <number>20</number>
-    </property>
-    <property name="echoMode">
-     <enum>QLineEdit::Password</enum>
-    </property>
-   </widget>
-   <widget class="QLabel" name="Label_Name">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>30</y>
-      <width>111</width>
-      <height>50</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>century gothic</family>
-      <pointsize>-1</pointsize>
-      <weight>75</weight>
-      <bold>true</bold>
-     </font>
-    </property>
-    <property name="styleSheet">
-     <string notr="true"/>
-    </property>
-    <property name="text">
-     <string>Username</string>
-    </property>
-    <property name="alignment">
-     <set>Qt::AlignCenter</set>
-    </property>
-   </widget>
-   <widget class="QLabel" name="Label_Password">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>110</y>
-      <width>110</width>
-      <height>50</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>century gothic</family>
-      <pointsize>-1</pointsize>
-      <weight>75</weight>
-      <bold>true</bold>
-     </font>
-    </property>
-    <property name="styleSheet">
-     <string notr="true"/>
-    </property>
-    <property name="text">
-     <string>Password</string>
-    </property>
-    <property name="alignment">
-     <set>Qt::AlignCenter</set>
-    </property>
-   </widget>
-   <widget class="QLabel" name="Label_Comment">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>170</y>
-      <width>380</width>
-      <height>41</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>century gothic</family>
-      <pointsize>-1</pointsize>
-      <weight>75</weight>
-      <bold>true</bold>
-     </font>
-    </property>
-    <property name="styleSheet">
-     <string notr="true"/>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-    <property name="alignment">
-     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-    </property>
-   </widget>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources>
-  <include location="GameLauncher.qrc"/>
+  <include location="../Resource/LoginUI.qrc"/>
  </resources>
  <connections/>
 </ui>

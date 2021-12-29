@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>LauncherUI/Content_Sub_BackGround.png</file>
+        <file>LauncherUI/Game_Start_Button.png</file>
+        <file>LauncherUI/Launcher_BackGround.png</file>
+        <file>LauncherUI/Main_Content.png</file>
+        <file>LauncherUI/Main_Content_Bar.png</file>
+    </qresource>
+</RCC>

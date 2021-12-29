@@ -109,6 +109,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <QtRcc Include="..\Resource\LauncherUI.qrc" />
+    <QtRcc Include="..\Resource\LoginUI.qrc" />
     <QtRcc Include="GameLauncher.qrc" />
     <QtUic Include="AccountCreate.ui" />
     <QtUic Include="GameLauncher.ui" />

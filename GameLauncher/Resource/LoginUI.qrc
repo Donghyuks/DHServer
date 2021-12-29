@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>LoginUI/Login_Input.png</file>
+        <file>LoginUI/Login_Background.png</file>
+        <file>LoginUI/Signup_Cancle.png</file>
+        <file>LoginUI/Signup_Cancle_Over.png</file>
+        <file>LoginUI/Singup_Background.png</file>
+        <file>LoginUI/Signup_Accept.png</file>
+        <file>LoginUI/Signup_Accept_Over.png</file>
+    </qresource>
+</RCC>

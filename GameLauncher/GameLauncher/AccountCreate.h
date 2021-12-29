@@ -24,6 +24,7 @@ private:
 
 public slots:
 	void ButtonClicked();
+	void CancleButtonClicked();
 
 private:
 	QString ConvertKR(QByteArray _Text);

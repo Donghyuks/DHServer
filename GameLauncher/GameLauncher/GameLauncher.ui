@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>660</width>
-    <height>760</height>
+    <width>550</width>
+    <height>400</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,25 +16,14 @@
   <property name="styleSheet">
    <string notr="true">*{
  font-family:century gothic;
- font-size:36px;
-}
-
-QFrame
-{
- background:#333;
- border-radius:10px;
+ font-size:14px;
 }
 
 #LoginForm
 {
- background:url(:/GameLauncher/Login_BG.png);
+ background:url(:/LoginUI/Login_Background.png);
 }
 
-QPushButton
-{
-background:red;
- border-radius:60px;
-}
 
 QToolButton
 {
@@ -47,209 +36,147 @@ QLabel
  color:white;
 }
 
-#label_4
+#CreateAccount
 {
-color:red;
-font-size:24px;
+ color:#908780;
+ background:transparent;
 }
 
-QPushButton
+#Login
 {
- color:white;
- border-radius:15px;
+ color:#908780;
+ background:transparent;
 }
-
-QPushButton:hover
-{
- color:#333;
- border-radius:15px;
- background:#49ebff;
-}
-
 QLineEdit
 {
  background:transparent;
  border:none;
- color:#717072;
- border-bottom:1px solid #717072;
-}
-
-#CreateAccount
-{
-
+ font-size:24px;
+ color:#979797;
 }</string>
   </property>
   <widget class="QWidget" name="LoginForm">
-   <widget class="QFrame" name="frame">
+   <widget class="QLabel" name="label_4">
     <property name="geometry">
      <rect>
-      <x>40</x>
-      <y>40</y>
-      <width>580</width>
-      <height>680</height>
+      <x>128</x>
+      <y>300</y>
+      <width>180</width>
+      <height>20</height>
      </rect>
     </property>
-    <property name="frameShape">
-     <enum>QFrame::StyledPanel</enum>
+    <property name="styleSheet">
+     <string notr="true">QLabel
+{
+color:#952e25;
+}</string>
     </property>
-    <property name="frameShadow">
-     <enum>QFrame::Raised</enum>
+    <property name="text">
+     <string/>
     </property>
-    <widget class="QPushButton" name="pushButton">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>580</y>
-       <width>511</width>
-       <height>71</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Login</string>
-     </property>
-    </widget>
-    <widget class="QLineEdit" name="lineEdit">
-     <property name="geometry">
-      <rect>
-       <x>50</x>
-       <y>269</y>
-       <width>481</width>
-       <height>61</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
-     <property name="maxLength">
-      <number>20</number>
-     </property>
-    </widget>
-    <widget class="QLineEdit" name="lineEdit_2">
-     <property name="geometry">
-      <rect>
-       <x>50</x>
-       <y>410</y>
-       <width>481</width>
-       <height>61</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
-     <property name="maxLength">
-      <number>20</number>
-     </property>
-     <property name="echoMode">
-      <enum>QLineEdit::Password</enum>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label_2">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>210</y>
-       <width>261</width>
-       <height>61</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true"/>
-     </property>
-     <property name="text">
-      <string>Username</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label_3">
-     <property name="geometry">
-      <rect>
-       <x>0</x>
-       <y>360</y>
-       <width>271</width>
-       <height>61</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true"/>
-     </property>
-     <property name="text">
-      <string>Password</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label_4">
-     <property name="geometry">
-      <rect>
-       <x>50</x>
-       <y>480</y>
-       <width>481</width>
-       <height>61</height>
-      </rect>
-     </property>
-     <property name="styleSheet">
-      <string notr="true"/>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="CreateAccount">
-     <property name="geometry">
-      <rect>
-       <x>260</x>
-       <y>110</y>
-       <width>271</width>
-       <height>71</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>회원가입</string>
-     </property>
-    </widget>
-    <widget class="QToolButton" name="toolButton">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>20</y>
-       <width>171</width>
-       <height>161</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>...</string>
-     </property>
-     <property name="icon">
-      <iconset resource="GameLauncher.qrc">
-       <normaloff>:/GameLauncher/user.png</normaloff>:/GameLauncher/user.png</iconset>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>128</width>
-       <height>128</height>
-      </size>
-     </property>
-    </widget>
-    <zorder>lineEdit</zorder>
-    <zorder>pushButton</zorder>
-    <zorder>lineEdit_2</zorder>
-    <zorder>label_2</zorder>
-    <zorder>label_3</zorder>
-    <zorder>label_4</zorder>
-    <zorder>CreateAccount</zorder>
-    <zorder>toolButton</zorder>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>150</y>
+      <width>330</width>
+      <height>56</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>century gothic</family>
+      <pointsize>-1</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="maxLength">
+     <number>20</number>
+    </property>
+    <property name="frame">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="CreateAccount">
+    <property name="geometry">
+     <rect>
+      <x>410</x>
+      <y>300</y>
+      <width>56</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QPushButton:hover
+{
+	color:#beb6a5;
+}</string>
+    </property>
+    <property name="text">
+     <string>회원가입</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit_2">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>225</y>
+      <width>330</width>
+      <height>56</height>
+     </rect>
+    </property>
+    <property name="autoFillBackground">
+     <bool>false</bool>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="maxLength">
+     <number>20</number>
+    </property>
+    <property name="frame">
+     <bool>true</bool>
+    </property>
+    <property name="echoMode">
+     <enum>QLineEdit::Password</enum>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="Login">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>300</y>
+      <width>56</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QPushButton:hover
+{
+	color:#beb6a5;
+}</string>
+    </property>
+    <property name="text">
+     <string>로그인</string>
+    </property>
    </widget>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <tabstops>
+  <tabstop>lineEdit</tabstop>
+  <tabstop>lineEdit_2</tabstop>
+  <tabstop>Login</tabstop>
+  <tabstop>CreateAccount</tabstop>
+ </tabstops>
  <resources>
-  <include location="GameLauncher.qrc"/>
+  <include location="../Resource/LoginUI.qrc"/>
  </resources>
  <connections/>
 </ui>

@@ -14,6 +14,7 @@ AccountCreate::AccountCreate(DHNetWorkAPI* _Network, QWidget *parent)
 	ui->setupUi(this);
 
 	connect(ui->Create_Button, SIGNAL(clicked()), this, SLOT(ButtonClicked()));
+	connect(ui->Cancle_Button, SIGNAL(clicked()), this, SLOT(CancleButtonClicked()));
 }
 
 AccountCreate::~AccountCreate()
@@ -106,6 +107,13 @@ void AccountCreate::ButtonClicked()
 		}
 		Sleep(0);
 	}
+}
+
+void AccountCreate::CancleButtonClicked()
+{
+	ClearText();
+	this->hide();
+	return;
 }
 
 QString AccountCreate::ConvertKR(QByteArray _Text)

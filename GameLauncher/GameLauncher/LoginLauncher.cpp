@@ -16,7 +16,7 @@ LoginLauncher::LoginLauncher(QWidget *parent)
     ui.setupUi(this);
 
     // 각각 로그인과 회원가입 버튼 연동.
-    connect(ui.pushButton, SIGNAL(clicked()), this, SLOT(ButtonClicked()));
+    connect(ui.Login, SIGNAL(clicked()), this, SLOT(ButtonClicked()));
     connect(ui.CreateAccount, SIGNAL(clicked()), this, SLOT(CreateAccountButtonClicked()));
     // 엔터키를 통한 로그인가능.
     Enter_Key = new QShortcut(this);
