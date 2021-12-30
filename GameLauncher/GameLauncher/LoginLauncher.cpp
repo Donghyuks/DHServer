@@ -90,6 +90,7 @@ void LoginLauncher::ButtonClicked()
                         // 런처화면으로의 전환.
 						this->hide();
                         m_PlayLauncher->ThreadCreate();
+                        m_PlayLauncher->SetUser(_ID_String);
 						m_PlayLauncher->exec();
 						return;
                     }

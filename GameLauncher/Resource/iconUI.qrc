@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>iconUI/Main_icon1.png</file>
+        <file>iconUI/Profile_icon1_off.png</file>
+        <file>iconUI/Profile_icon1_on.png</file>
+        <file>iconUI/Profile_icon2_off.png</file>
+        <file>iconUI/Profile_icon2_on.png</file>
+        <file>iconUI/Profile_icon3_off.png</file>
+        <file>iconUI/Profile_icon3_on.png</file>
+    </qresource>
+</RCC>

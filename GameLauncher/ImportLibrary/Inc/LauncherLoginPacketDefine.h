@@ -19,6 +19,18 @@
 #define USER_IN_LOBBY				0b0100
 #define USER_IN_GAME				0b1000
 
+// Icon Type (유저 프로필에 쓰일 아이콘 타입)
+#define USER_ICON_TYPE_1			1
+#define USER_ICON_TYPE_2			2
+#define USER_ICON_TYPE_3			3
+#define USER_ICON_TYPE_4			4
+#define USER_ICON_TYPE_5			5
+#define USER_ICON_TYPE_6			6
+#define USER_ICON_TYPE_7			7
+#define USER_ICON_TYPE_8			8
+#define USER_ICON_TYPE_9			9
+#define USER_ICON_TYPE_10			10
+
 // Client To Server
 #define	C2S_KEEP_ALIVE_CHECK_RES	5001
 #define	C2S_LOGIN_SAFE_REQ			5002
