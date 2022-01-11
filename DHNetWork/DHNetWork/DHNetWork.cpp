@@ -62,18 +62,21 @@ BOOL DHNetWork::Connect(unsigned short _Port, std::string _IP)
 
 BOOL DHNetWork::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsigned short _Work_Thread_Count)
 {
-	/// 이미 서버로 생성되었거나 Accept를 두번이상 호출하는 경우.
-	if (m_NetWork != nullptr || Current_Type == TYPE_DHCLIENT)
+	/// 이미 클라이언트로 생성되었거나 Accept를 두번이상 호출하는 경우.
+	if (Current_Type == TYPE_DHCLIENT)
 	{
 		PrintTypeErrMessage();
 		return LOGIC_FAIL;
 	}
 
-	/// 서버로써 NetWork 생성.
-	Current_Type = TYPE_DHSERVER;
-	m_NetWork = new DHServer();
-	// 디버그 옵션 설정
-	m_NetWork->SetDebug(g_Debug_Option);
+	if (Current_Type != TYPE_DHSERVER)
+	{
+		/// 서버로써 NetWork 생성.
+		Current_Type = TYPE_DHSERVER;
+		m_NetWork = new DHServer();
+		// 디버그 옵션 설정
+		m_NetWork->SetDebug(g_Debug_Option);
+	}
 
 	/// 들어온 포트로써 서버를 열고, Max_User 수를 지정해준다.
 	return m_NetWork->Accept(_Port, _Max_User_Count, _Work_Thread_Count);

@@ -27,20 +27,22 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsi
 	/// 포트와 최대인원수 설정.
 	PORT = _Port; MAX_USER_COUNT = _Max_User_Count;
 
-	m_MemoryPool = new MemoryPool(SERVER_MEMORYPOOL_COUNT);
+	TCHAR* Error_Buffer = nullptr;
+
+	if (g_IOCP == nullptr)
+	{
+		/// IOCP를 생성한다.
+		g_IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
+		assert(nullptr != g_IOCP);
+
+		m_MemoryPool = new MemoryPool(SERVER_MEMORYPOOL_COUNT);
+
+		/// 사용가능한 Overlapped를 생성해둔다. (2000개로 생성해둠)
+		Available_Overlapped = new ObjectPool<Overlapped_Struct>(SERVER_OVERLAPPED_COUNT);
+	}
+
 	/// 에러를 출력하기위한 버퍼를 생성해 둠. (메모리풀 사용)
-	TCHAR* Error_Buffer = (TCHAR*)m_MemoryPool->GetMemory(ERROR_MSG_BUFIZE);
-
-	/// IOCP를 생성한다.
-	g_IOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
-	assert(nullptr != g_IOCP);
-
-	/// 사용가능한 Overlapped를 생성해둔다. (2000개로 생성해둠)
-	Available_Overlapped = new ObjectPool<Overlapped_Struct>(SERVER_OVERLAPPED_COUNT);
-
-	/// Worker Thread들은 보통 코어수 ~ 코어수*2 개 정도로 생성한다고 한다.
-	/// 시스템의 정보를 받아와서 코어수의 *2개만큼 WorkThread를 생성한다.
-	CreateWorkThread(_Work_Thread_Count);
+	Error_Buffer = (TCHAR*)m_MemoryPool->GetMemory(ERROR_MSG_BUFIZE);
 
 	/// 소켓의 구조체를 생성한다.
 	g_Listen_Socket = std::make_shared<SOCKET>();
@@ -54,7 +56,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsi
 		_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- WSASocket() :"));
 		err_display(Error_Buffer);
 
-		WSACleanup();
+		m_MemoryPool->ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
 		return LOGIC_FAIL;
 	}
 
@@ -69,6 +71,8 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsi
 	serveraddr.sin_port = htons(PORT);
 	if (SOCKET_ERROR == bind(*g_Listen_Socket, reinterpret_cast<SOCKADDR*>(&serveraddr), sizeof(serveraddr)))
 	{
+		printf("[TCP 서버] 연결 시도 PORT : %d", PORT);
+
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
 		_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- bind() :"));
 		err_display(Error_Buffer);
@@ -76,13 +80,15 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsi
 		closesocket(*g_Listen_Socket);
 		*g_Listen_Socket = INVALID_SOCKET;
 
-		WSACleanup();
+		m_MemoryPool->ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
 		return LOGIC_FAIL;
 	}
 
 	/// listen ( 여기에 5개를 설정한다해서 5명만 받는게 아니다. 버퍼의 수임 )
 	if (SOCKET_ERROR == listen(*g_Listen_Socket, 5))
 	{
+		printf("[TCP 서버] 연결 시도 PORT : %d", PORT);
+
 		/// TCHAR을 통해 유니코드/멀티바이트의 가변적 상황에 제네릭하게 동작할 수 있도록 한다.
 		_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- listen() :"));
 		err_display(Error_Buffer);
@@ -90,11 +96,15 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsi
 		closesocket(*g_Listen_Socket);
 		*g_Listen_Socket = INVALID_SOCKET;
 
-		WSACleanup();
+		m_MemoryPool->ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
 		return LOGIC_FAIL;
 	}
 
-	printf_s("[TCP 서버] 시작\n");
+	/// Worker Thread들은 보통 코어수 ~ 코어수*2 개 정도로 생성한다고 한다.
+	/// 시스템의 정보를 받아와서 코어수의 *2개만큼 WorkThread를 생성한다.
+	CreateWorkThread(_Work_Thread_Count);
+
+	printf_s("[TCP 서버][PORT : %d] 시작\n",PORT);
 
 	DWORD dwByte;	/// 처리 Byte
 
@@ -114,7 +124,7 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsi
 			_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- Accept 소켓 생성중 오류 발생 :"));
 			err_display(Error_Buffer);
 
-			WSACleanup();
+			m_MemoryPool->ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
 			return LOGIC_FAIL;
 		}
 
@@ -133,6 +143,8 @@ BOOL DHServer::Accept(unsigned short _Port, unsigned short _Max_User_Count, unsi
 		{
 			_stprintf_s(Error_Buffer, ERROR_MSG_BUFIZE, _T("[TCP 서버] 에러 발생 -- AcceptEx 함수"));
 			err_display(Error_Buffer);
+
+			m_MemoryPool->ResetMemory(Error_Buffer, ERROR_MSG_BUFIZE);
 			return LOGIC_FAIL;
 		}
 
