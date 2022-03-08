@@ -226,60 +226,6 @@ QPushButton:hover
     <string/>
    </property>
   </widget>
-  <widget class="QTextEdit" name="GameDesign_Note">
-   <property name="geometry">
-    <rect>
-     <x>50</x>
-     <y>610</y>
-     <width>241</width>
-     <height>251</height>
-    </rect>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">QTextEdit
-{
-	color:#BEB6A5;
-	background:transparent;
-	border:none;
-}</string>
-   </property>
-  </widget>
-  <widget class="QTextEdit" name="Programming_Note">
-   <property name="geometry">
-    <rect>
-     <x>354</x>
-     <y>610</y>
-     <width>241</width>
-     <height>251</height>
-    </rect>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">QTextEdit
-{
-	color:#BEB6A5;
-	background:transparent;
-	border:none;
-}</string>
-   </property>
-  </widget>
-  <widget class="QTextEdit" name="Art_Note">
-   <property name="geometry">
-    <rect>
-     <x>660</x>
-     <y>610</y>
-     <width>241</width>
-     <height>251</height>
-    </rect>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">QTextEdit
-{
-	color:#BEB6A5;
-	background:transparent;
-	border:none;
-}</string>
-   </property>
-  </widget>
   <widget class="QLabel" name="Programming_Title">
    <property name="geometry">
     <rect>
@@ -343,19 +289,58 @@ QPushButton:hover
     <string>[기획]</string>
    </property>
   </widget>
+  <widget class="QLabel" name="GameDesign_Image">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>610</y>
+     <width>261</width>
+     <height>251</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="Programming_Image">
+   <property name="geometry">
+    <rect>
+     <x>340</x>
+     <y>610</y>
+     <width>261</width>
+     <height>251</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="Art_Image">
+   <property name="geometry">
+    <rect>
+     <x>650</x>
+     <y>610</y>
+     <width>261</width>
+     <height>251</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
   <zorder>GameStart</zorder>
   <zorder>Friend_List</zorder>
   <zorder>Friend_Request</zorder>
   <zorder>AddFriend</zorder>
   <zorder>User_ID</zorder>
   <zorder>Main_Patch_Image</zorder>
-  <zorder>GameDesign_Note</zorder>
-  <zorder>Programming_Note</zorder>
-  <zorder>Art_Note</zorder>
   <zorder>Programming_Title</zorder>
   <zorder>Art_Title</zorder>
   <zorder>GameDesign_Title</zorder>
   <zorder>User_Icon</zorder>
+  <zorder>GameDesign_Image</zorder>
+  <zorder>Programming_Image</zorder>
+  <zorder>Art_Image</zorder>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources>

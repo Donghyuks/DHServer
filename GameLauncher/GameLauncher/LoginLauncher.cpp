@@ -7,6 +7,8 @@
 LoginLauncher::LoginLauncher(QWidget *parent)
     : QMainWindow(parent)
 {
+    this->setFixedSize(550, 440);
+
     // 로그인 서버에 연결
     m_Login_NetWork = new DHNetWorkAPI();
     m_Login_NetWork->Initialize(DHNetWork_Name::DHNet);

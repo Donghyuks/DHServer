@@ -2,10 +2,10 @@
 #include <QFile>
 #include <QTextStream>
 #include <QMessageBox>
+#include <QBoxLayout>
 #include <QTextCodec>
 #include "DHNetWorkAPI.h"
 #include "SharedDataStruct.h"
-#include "LoginLauncher_generated.h"
 #include "LauncherLoginPacketDefine.h"
 #include <chrono>
 
@@ -14,6 +14,9 @@ GamePlayLauncher::GamePlayLauncher(DHNetWorkAPI* m_NetWork, QDialog* parent)
 {
 	Main_Content_Count = 3;
 	m_Login_NetWork = m_NetWork;
+	Friend_Request_List.resize(3, "");
+
+	this->setFixedSize(1200,880);
 
 	ui.setupUi(this);
 	codec = QTextCodec::codecForName("EUC-KR");	// 한글코덱
@@ -24,6 +27,11 @@ GamePlayLauncher::GamePlayLauncher(DHNetWorkAPI* m_NetWork, QDialog* parent)
 	ui.Friend_List->setColumnWidth(0, 130);
 	ui.Friend_List->setHeaderHidden(true);
 	ui.Friend_List->setIconSize(QSize(60, 60));
+
+	// 파트별 설명란 이미지
+	Art_Image = new QPixmap("../Resource/LauncherUI/Art_Image.png");
+	Design_Image = new QPixmap("../Resource/LauncherUI/GameDesign_Image.png");
+	Programming_Image = new QPixmap("../Resource/LauncherUI/Programming_Image.png");
 
 	// Background List
 	BackGround_List.insert({ std::string("Main_Content1"),		QPixmap("../Resource/LauncherUI/Main_Content1.png") });
@@ -88,6 +96,18 @@ GamePlayLauncher::GamePlayLauncher(DHNetWorkAPI* m_NetWork, QDialog* parent)
 	Height = ui.Main_Patch_Image->height();
 	ui.Main_Patch_Image->setPixmap(BackGround_List["Main_Content1"].scaled(Width, Height, Qt::KeepAspectRatio));
 
+	Width = ui.GameDesign_Image->width();
+	Height = ui.GameDesign_Image->height();
+	ui.GameDesign_Image->setPixmap(Design_Image->scaled(Width, Height, Qt::KeepAspectRatio));
+
+	Width = ui.Programming_Image->width();
+	Height = ui.Programming_Image->height();
+	ui.Programming_Image->setPixmap(Programming_Image->scaled(Width, Height, Qt::KeepAspectRatio));
+
+	Width = ui.Art_Image->width();
+	Height = ui.Art_Image->height();
+	ui.Art_Image->setPixmap(Art_Image->scaled(Width, Height, Qt::KeepAspectRatio));
+
 	// Html 파일을 읽어서 보여줌 (패치노트)
 	//QFile HtmlFile("PathNote.htm");
 	//HtmlFile.open(QFile::ReadOnly | QFile::Text);
@@ -95,13 +115,15 @@ GamePlayLauncher::GamePlayLauncher(DHNetWorkAPI* m_NetWork, QDialog* parent)
 	//ui.textBrowser->setHtml(HtmlStream.readAll());
 
 	// 트리 구조에 추가.
-	addTreeRoot(ConvertKR("Eater"), "", ColColorType::Ingame_Green);
+	addTreeRoot(ConvertKR("게임중"), "", ColColorType::Ingame_Green);
 	addTreeRoot(ConvertKR("온라인"), "", ColColorType::Online_Blue);
 	addTreeRoot(ConvertKR("오프라인"), "", ColColorType::Offline_Gray);
+	addFriendRequest(ConvertKR("친구요청"), ColColorType::Offline_Gray);
 }
 
 GamePlayLauncher::~GamePlayLauncher()
 {
+
 }
 
 void GamePlayLauncher::ThreadCreate()
@@ -118,11 +140,6 @@ void GamePlayLauncher::RecvServerPacket()
 	S2C_Packet* Recv_Packet = nullptr;
 	C2S_Packet Send_Pakcet;
 
-	// 현재 동작중임을 알려줄 패킷
-	Send_Pakcet.Packet_Type = C2S_KEEP_ALIVE_CHECK_RES;
-	Send_Pakcet.Packet_Buffer[0] = true;
-	Send_Pakcet.Packet_Size = 1;
-
 	auto _Current_Time = std::chrono::system_clock::now();
 	auto _Prev_Time = std::chrono::system_clock::now();
 	std::chrono::duration<double> _Passed_Time;
@@ -130,6 +147,34 @@ void GamePlayLauncher::RecvServerPacket()
 	// 서버로 부터 친구 목록을 업데이트 받는다.
 	while (true)
 	{
+		// 게임이 실행중인가?
+		if (m_Process != nullptr)
+		{
+			PROCESS_INFORMATION* _pi = (PROCESS_INFORMATION*)(m_Process);
+			HRESULT _Current_State = WaitForSingleObject(_pi->hProcess, 1);
+
+			if (_Current_State == (DWORD)0xFFFFFFFF || _Current_State == S_OK)
+			{
+				if (m_Is_Playing)
+				{
+					flatbuffers::FlatBufferBuilder m_Builder;
+					auto _My_ID = m_Builder.CreateString(m_User_Name);
+					auto _Game_State = Eater::LoginLauncher::CreatePlayState(m_Builder, _My_ID, false);
+					m_Builder.Finish(_Game_State);
+
+					C2S_Packet m_Send_Packet;
+
+					m_Send_Packet.Packet_Type = C2S_PLAY_STATE;
+					m_Send_Packet.Packet_Size = m_Builder.GetSize();
+					memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+					m_Login_NetWork->Send(&m_Send_Packet);
+				}
+
+				m_Is_Playing = false;
+			}
+		}
+
 		// 친구요청에 대한 결과 UI가 필요하다면..
 		if (_Current_Visible_State)
 		{
@@ -158,13 +203,17 @@ void GamePlayLauncher::RecvServerPacket()
 			{
 				Recv_Packet = static_cast<S2C_Packet*>(S2C_Msg.Packet);
 
-				if (Recv_Packet->Packet_Type == S2C_KEEP_ALIVE_CHECK_REQ)
+				if (Recv_Packet->Packet_Type == S2C_CURRENT_USER_STATE)
 				{
+					m_Recv_Friend.clear();
+					m_Recv_Friend_Request.clear();
+
 					const uint8_t* Recv_Data_Ptr = (unsigned char*)Recv_Packet->Packet_Buffer;
 
 					const auto Recv_Login_Result = flatbuffers::GetRoot<Eater::LoginLauncher::RealTimeData>(Recv_Data_Ptr);
 
 					auto Recv_Friend_State_Vector = Recv_Login_Result->friendstate();
+					auto Recv_Friend_Request_Vector = Recv_Login_Result->friendrequest();
 
 					RemoveTreeChildAll();
 
@@ -173,6 +222,8 @@ void GamePlayLauncher::RecvServerPacket()
 						auto Friend_Data = Recv_Friend_State_Vector->Get(i);
 						auto _User_ID = Friend_Data->id()->str();
 						auto _User_State = Friend_Data->state();
+
+						m_Recv_Friend.emplace(_User_ID);
 
 						// 각 유저의 상태에 따라 처리해준다.
 						if (_User_State == USER_OFFLINE)
@@ -185,15 +236,54 @@ void GamePlayLauncher::RecvServerPacket()
 						}
 						else if (_User_State == USER_IN_GAME)
 						{
-							addTreeChild(ConvertKR("Eater"), _User_ID, "게임중", USER_ICON_TYPE_1, ColColorType::Ingame_Green);
-						}
-						else if (_User_State == USER_IN_LOBBY)
-						{
-							addTreeChild(ConvertKR("Eater"), _User_ID, "로비", USER_ICON_TYPE_1, ColColorType::Ingame_Green);
+							addTreeChild(ConvertKR("게임중"), _User_ID, "게임중", USER_ICON_TYPE_1, ColColorType::Ingame_Green);
 						}
 
 					}
 
+					if (Recv_Friend_Request_Vector->size() == 0)
+					{
+						if (!_Friend_Request_Item->isHidden())
+						{
+							_Friend_Request_Item->setHidden(true);
+						}
+
+					}
+					else
+					{
+						if (_Friend_Request_Item->isHidden())
+						{
+							_Friend_Request_Item->setHidden(false);
+						}
+
+						for (int i = 0; i < 3; i++)
+						{
+							Current_Friend_Request_Count = 0;
+							Friend_Request_List[i] = "";
+							QTreeWidgetItem* _Child_Item = _Friend_Request_Item->child(i);
+							_Child_Item->setHidden(true);
+						}
+
+						for (int i = 0; i < Recv_Friend_Request_Vector->size(); i++)
+						{
+							auto Friend_Request_ID = Recv_Friend_Request_Vector->Get(i)->str();
+							m_Recv_Friend_Request.emplace(Friend_Request_ID);
+
+							// 최대 3개까지만 보여줌
+							if (i > 4)
+							{
+								continue;;
+							}
+
+							Friend_Request_List[i] = Friend_Request_ID;
+
+							QTreeWidgetItem* _Child_Item = _Friend_Request_Item->child(i);
+							_Child_Item->setHidden(false);
+							_Child_Item->setText(0, ConvertKR(Friend_Request_ID.c_str()));
+							Current_Friend_Request_Count++;
+						}
+
+					}
 				}
 
 				delete S2C_Msg.Packet;
@@ -201,10 +291,9 @@ void GamePlayLauncher::RecvServerPacket()
 			}
 
 			Msg_Vec.clear();
-			
-			// 동작중임을 알림.
-			m_Login_NetWork->Send(&Send_Pakcet);
 		}
+
+		Sleep(1);
 	}
 }
 
@@ -242,11 +331,168 @@ void GamePlayLauncher::VisibleUI()
 	ui.Friend_List->setGeometry(_Friend_List_Start_x, _Friend_List_Start_y, _Friend_List_Size.width(), _Friend_List_Size.height());
 }
 
+
+void GamePlayLauncher::PushAcceptFriendRequestButton1()
+{
+	std::string _Current_Friend = Friend_Request_List[0];
+
+	flatbuffers::FlatBufferBuilder m_Builder;
+	auto _Friend_ID = m_Builder.CreateString(_Current_Friend);
+	auto _My_ID = m_Builder.CreateString(m_User_Name);
+	auto _Add_Friend_Data = Eater::LoginLauncher::CreateAcceptFriend(m_Builder, _My_ID, _Friend_ID, true);
+	m_Builder.Finish(_Add_Friend_Data);
+
+	C2S_Packet m_Send_Packet;
+
+	m_Send_Packet.Packet_Type = C2S_ACCPET_FRIEND;
+	m_Send_Packet.Packet_Size = m_Builder.GetSize();
+	memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+	m_Login_NetWork->Send(&m_Send_Packet);
+
+	SortFriendRequest(0);
+}
+
+void GamePlayLauncher::PushAcceptFriendRequestButton2()
+{
+	std::string _Current_Friend = Friend_Request_List[1];
+
+	flatbuffers::FlatBufferBuilder m_Builder;
+	auto _Friend_ID = m_Builder.CreateString(_Current_Friend);
+	auto _My_ID = m_Builder.CreateString(m_User_Name);
+	auto _Add_Friend_Data = Eater::LoginLauncher::CreateAcceptFriend(m_Builder, _My_ID, _Friend_ID, true);
+	m_Builder.Finish(_Add_Friend_Data);
+
+	C2S_Packet m_Send_Packet;
+
+	m_Send_Packet.Packet_Type = C2S_ACCPET_FRIEND;
+	m_Send_Packet.Packet_Size = m_Builder.GetSize();
+	memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+	m_Login_NetWork->Send(&m_Send_Packet);
+
+	SortFriendRequest(1);
+}
+
+void GamePlayLauncher::PushAcceptFriendRequestButton3()
+{
+	std::string _Current_Friend = Friend_Request_List[2];
+
+	flatbuffers::FlatBufferBuilder m_Builder;
+	auto _Friend_ID = m_Builder.CreateString(_Current_Friend);
+	auto _My_ID = m_Builder.CreateString(m_User_Name);
+	auto _Add_Friend_Data = Eater::LoginLauncher::CreateAcceptFriend(m_Builder, _My_ID, _Friend_ID, true);
+	m_Builder.Finish(_Add_Friend_Data);
+
+	C2S_Packet m_Send_Packet;
+
+	m_Send_Packet.Packet_Type = C2S_ACCPET_FRIEND;
+	m_Send_Packet.Packet_Size = m_Builder.GetSize();
+	memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+	m_Login_NetWork->Send(&m_Send_Packet);
+
+	SortFriendRequest(2);
+}
+
+void GamePlayLauncher::PushCancelFriendRequestButton1()
+{
+	std::string _Current_Friend = Friend_Request_List[0];
+
+	flatbuffers::FlatBufferBuilder m_Builder;
+	auto _Friend_ID = m_Builder.CreateString(_Current_Friend);
+	auto _My_ID = m_Builder.CreateString(m_User_Name);
+	auto _Add_Friend_Data = Eater::LoginLauncher::CreateAcceptFriend(m_Builder, _My_ID, _Friend_ID, false);
+	m_Builder.Finish(_Add_Friend_Data);
+
+	C2S_Packet m_Send_Packet;
+
+	m_Send_Packet.Packet_Type = C2S_ACCPET_FRIEND;
+	m_Send_Packet.Packet_Size = m_Builder.GetSize();
+	memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+	m_Login_NetWork->Send(&m_Send_Packet);
+
+	SortFriendRequest(0);
+}
+
+void GamePlayLauncher::PushCancelFriendRequestButton2()
+{
+	std::string _Current_Friend = Friend_Request_List[1];
+
+	flatbuffers::FlatBufferBuilder m_Builder;
+	auto _Friend_ID = m_Builder.CreateString(_Current_Friend);
+	auto _My_ID = m_Builder.CreateString(m_User_Name);
+	auto _Add_Friend_Data = Eater::LoginLauncher::CreateAcceptFriend(m_Builder, _My_ID, _Friend_ID, false);
+	m_Builder.Finish(_Add_Friend_Data);
+
+	C2S_Packet m_Send_Packet;
+
+	m_Send_Packet.Packet_Type = C2S_ACCPET_FRIEND;
+	m_Send_Packet.Packet_Size = m_Builder.GetSize();
+	memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+	m_Login_NetWork->Send(&m_Send_Packet);
+
+	SortFriendRequest(1);
+}
+
+void GamePlayLauncher::PushCancelFriendRequestButton3()
+{
+	std::string _Current_Friend = Friend_Request_List[2];
+
+	flatbuffers::FlatBufferBuilder m_Builder;
+	auto _Friend_ID = m_Builder.CreateString(_Current_Friend);
+	auto _My_ID = m_Builder.CreateString(m_User_Name);
+	auto _Add_Friend_Data = Eater::LoginLauncher::CreateAcceptFriend(m_Builder, _My_ID, _Friend_ID, false);
+	m_Builder.Finish(_Add_Friend_Data);
+
+	C2S_Packet m_Send_Packet;
+
+	m_Send_Packet.Packet_Type = C2S_ACCPET_FRIEND;
+	m_Send_Packet.Packet_Size = m_Builder.GetSize();
+	memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+	m_Login_NetWork->Send(&m_Send_Packet);
+
+	SortFriendRequest(2);
+}
+
 void GamePlayLauncher::PushGameStartButton()
 {
-	// SVN 업데이트 실행 ( SVN은 디폴트로 다음과 같은 경로에 깔린다 => C:\\Program Files\\TortoiseSVN\\bin )
-	//system("cd C:\\Program Files\\TortoiseSVN\\bin && TortoiseProc.exe /command:update /path:D:\\GA2ndFinal_Eater && D:\\GA2ndFinal_Eater\\1_Executable\\TestClient\\TestClient.exe");
-	system("..\\TestClient\\TestClient.exe");
+	static PROCESS_INFORMATION pi;
+	static STARTUPINFO si;
+
+	if (m_Process == nullptr)
+	{
+		m_Process = &pi;
+	}
+
+	if (!m_Is_Playing)
+	{
+		ZeroMemory(&si, sizeof(si));
+		si.cb = sizeof(si);
+		ZeroMemory(&pi, sizeof(pi));
+
+		TCHAR _Path[] = _T("bin\\Eater.exe");
+		HRESULT _result = CreateProcess(NULL, _Path, NULL, NULL, FALSE,
+			NULL, NULL, NULL, &si, &pi);
+
+		flatbuffers::FlatBufferBuilder m_Builder;
+		auto _My_ID = m_Builder.CreateString(m_User_Name);
+		auto _Game_State = Eater::LoginLauncher::CreatePlayState(m_Builder, _My_ID, true);
+		m_Builder.Finish(_Game_State);
+
+		C2S_Packet m_Send_Packet;
+
+		m_Send_Packet.Packet_Type = C2S_PLAY_STATE;
+		m_Send_Packet.Packet_Size = m_Builder.GetSize();
+		memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+		m_Login_NetWork->Send(&m_Send_Packet);
+
+		m_Is_Playing = true;
+	}
 }
 
 void GamePlayLauncher::PushContentButton()
@@ -303,14 +549,49 @@ void GamePlayLauncher::PushContentButton()
 
 void GamePlayLauncher::PushFriendRequestButton()
 {
+	static bool _Is_In;
+	static bool _Is_Request_In;
+	_Is_In = false;
+	_Is_Request_In = false;
+
 	// 입력받은 아이디를 가져온다.
 	QString _ID = ui.Friend_Request->text();
 	std::string _ID_String = _ID.toLocal8Bit().constData();
 
+	for (auto _Friend_ID : m_Recv_Friend)
+	{
+		// 이미 친구상태인 경우
+		if (_ID_String == _Friend_ID)
+		{
+			_Is_In = true;
+		}
+	}
+
+	if (_Is_In)
+	{
+		Friend_Request_Result->setText(ConvertKR("이미 친구로 등록되어 있습니다."));
+		SetVisibleRequestResult(true);
+		return;
+	}
+
+	for (auto _Friend_ID : m_Recv_Friend_Request)
+	{
+		// 이미 친구상태인 경우
+		if (_ID_String == _Friend_ID)
+		{
+			_Is_In = true;
+		}
+	}
+	if (_Is_In)
+	{
+		Friend_Request_Result->setText(ConvertKR("친구요청을 먼저 처리해주세요."));
+		SetVisibleRequestResult(true);
+		return;
+	}
 
 	if (_ID_String.size() > 20)
 	{
-		Friend_Request_Result->setText(ConvertKR("아이디나 패스워드는 20자까지 가능합니다."));
+		Friend_Request_Result->setText(ConvertKR("ID는 20자까지 가능합니다."));
 		SetVisibleRequestResult(true);
 		return;
 	}
@@ -322,8 +603,25 @@ void GamePlayLauncher::PushFriendRequestButton()
 		return;
 	}
 
-	//SetVisibleRequestResult(true);
+	// 로그인 서버에게 해당 아이디 비밀번호로 친구요청을 보냄
+	flatbuffers::FlatBufferBuilder m_Builder;
+	auto _Friend_ID = m_Builder.CreateString(_ID_String);
+	auto _My_ID = m_Builder.CreateString(m_User_Name);
+	auto _Add_Friend_Data = Eater::LoginLauncher::CreateAddFriend(m_Builder, _My_ID, _Friend_ID);
+	m_Builder.Finish(_Add_Friend_Data);
 
+	C2S_Packet m_Send_Packet;
+
+	// 패킷 헤더를 붙여 보내준다.
+	m_Send_Packet.Packet_Type = C2S_ADD_FRIEND;
+	m_Send_Packet.Packet_Size = m_Builder.GetSize();
+	memcpy_s(m_Send_Packet.Packet_Buffer, m_Builder.GetSize(), m_Builder.GetBufferPointer(), m_Builder.GetSize());
+
+	// 친구 추가 요청 메세지를 보낸다.
+	m_Login_NetWork->Send(&m_Send_Packet);
+
+	Friend_Request_Result->setText(ConvertKR("친구 요청을 보냈습니다."));
+	SetVisibleRequestResult(true);
 }
 
 void GamePlayLauncher::SetVisibleRequestResult(bool _Visible)
@@ -380,6 +678,63 @@ void GamePlayLauncher::addTreeRoot(QString _Name, QString _description, ColColor
 	WidgetRoot_List.insert(std::pair<QString, QTreeWidgetItem*>(_Name,treeItem));
 }
 
+void GamePlayLauncher::addFriendRequest(QString _Name, ColColorType _Color_Type)
+{
+	_Friend_Request_Item = new QTreeWidgetItem(ui.Friend_List);
+	_Friend_Request_Item->setText(0, _Name);
+	_Friend_Request_Item->setFont(0, *Bold_Rarge);
+	_Friend_Request_Item->setHidden(true);
+
+	switch (_Color_Type)
+	{
+	case GamePlayLauncher::Ingame_Green:
+		_Friend_Request_Item->setTextColor(0, QColor(217, 244, 187));
+		break;
+	case GamePlayLauncher::Online_Blue:
+		_Friend_Request_Item->setTextColor(0, QColor(109, 207, 246));
+		break;
+	case GamePlayLauncher::Offline_Gray:
+		_Friend_Request_Item->setTextColor(0, QColor(112, 112, 113));
+		break;
+	}
+
+	for (int i = 0; i < 3; i++)
+	{
+		QTreeWidgetItem* ChildTreeItem = new QTreeWidgetItem();
+		ChildTreeItem->setText(0, "");
+		ChildTreeItem->setFont(0, *Bold_Small);
+		QWidget* dualPushButtons = new QWidget();
+		QHBoxLayout* hLayout = new QHBoxLayout();
+		QPushButton* _Button_1 = new QPushButton("Accept");
+		QPushButton* _Button_2 = new QPushButton("Cancel");
+		if (i == 0)
+		{
+			connect(_Button_1, SIGNAL(clicked()), this, SLOT(PushAcceptFriendRequestButton1()));	// 푸쉬버튼 등록
+			connect(_Button_2, SIGNAL(clicked()), this, SLOT(PushCancelFriendRequestButton1()));	// 푸쉬버튼 등록
+		}
+		else if (i == 1)
+		{
+			connect(_Button_1, SIGNAL(clicked()), this, SLOT(PushAcceptFriendRequestButton2()));	// 푸쉬버튼 등록
+			connect(_Button_2, SIGNAL(clicked()), this, SLOT(PushCancelFriendRequestButton2()));	// 푸쉬버튼 등록
+		}
+		else if ( i == 2)
+		{
+			connect(_Button_1, SIGNAL(clicked()), this, SLOT(PushAcceptFriendRequestButton3()));	// 푸쉬버튼 등록
+			connect(_Button_2, SIGNAL(clicked()), this, SLOT(PushCancelFriendRequestButton3()));	// 푸쉬버튼 등록
+		}
+
+		hLayout->addWidget(_Button_1);
+		hLayout->addWidget(_Button_2);
+		dualPushButtons->setLayout(hLayout);
+		_Friend_Request_Item->addChild(ChildTreeItem);
+		ChildTreeItem->setHidden(true);
+
+		ui.Friend_List->setItemWidget(ChildTreeItem, 1, dualPushButtons);
+		AddFriend_Button.insert({ i * 2, _Button_1 });
+		AddFriend_Button.insert({ i * 2 + 1, _Button_2 });
+	}
+}
+
 void GamePlayLauncher::addTreeChild(QString _Parent_Name, std::string _Name, std::string _description, int _Icon_Type, ColColorType _Color_Type)
 {
 	std::string Column_Msg = _Name + std::string("\n") + _description;
@@ -406,7 +761,6 @@ void GamePlayLauncher::addTreeChild(QString _Parent_Name, std::string _Name, std
 	if (_Child_Index == -1)
 	{
 		QTreeWidgetItem* ChildTreeItem = new QTreeWidgetItem();
-
 		std::string Icon_Name = Icon_Type_Name[_Icon_Type];
 
 		if (_Parent_Name == ConvertKR("오프라인"))
@@ -451,29 +805,6 @@ void GamePlayLauncher::addTreeChild(QString _Parent_Name, std::string _Name, std
 
 }
 
-void GamePlayLauncher::ExceptRemoveTreeChild(QString _Except_Parent, QString _Item_Name)
-{
-	// 해당하는 부모를 제외한 나머지에서 해당 아이템을 지운다.
-	for (auto& _Root_Data : WidgetRoot_List)
-	{
-		QString _Parent_Name = _Root_Data.first;
-
-		if (_Parent_Name == _Except_Parent) continue;
-
-		// 위젯의 부모로부터 자식들 (행에 해당하는 부분)을 가져옴.
-		for (int i = 0; i < WidgetRoot_List[_Parent_Name]->childCount(); i++)
-		{
-			QString ColumnString = WidgetRoot_List[_Parent_Name]->child(i)->text(0);
-			// 해당하는 자식 삭제
-			if (ColumnString == _Item_Name)
-			{
-				WidgetRoot_List[_Parent_Name]->removeChild(WidgetRoot_List[_Parent_Name]->child(i));
-				return;
-			}
-		}
-	}
-}
-
 void GamePlayLauncher::RemoveTreeChildAll()
 {
 	// 해당하는 부모를 제외한 나머지에서 해당 아이템을 지운다.
@@ -488,4 +819,18 @@ void GamePlayLauncher::RemoveTreeChildAll()
 			WidgetRoot_List[_Parent_Name]->removeChild(WidgetRoot_List[_Parent_Name]->child(0));
 		}
 	}
+}
+
+void GamePlayLauncher::SortFriendRequest(int _index)
+{
+	for (int i = _index; i < 2; i++)
+	{
+		Friend_Request_List[i] = Friend_Request_List[i + 1];
+		QTreeWidgetItem* _Child_Item = _Friend_Request_Item->child(i);
+		_Child_Item->setText(0, ConvertKR(Friend_Request_List[i].c_str()));
+	}
+	
+	Current_Friend_Request_Count--;
+	QTreeWidgetItem* _Child_Item = _Friend_Request_Item->child(Current_Friend_Request_Count);
+	_Child_Item->setHidden(true);
 }

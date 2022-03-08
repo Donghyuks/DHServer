@@ -12,6 +12,7 @@
 #include <QFont>
 
 #include "ui_GamePlayLauncher.h"
+#include "LoginLauncher_generated.h"
 
 class DHNetWorkAPI;
 
@@ -44,6 +45,13 @@ public slots:
 	void PushFriendRequestButton();
 	void HideUI();
 	void VisibleUI();
+
+	void PushAcceptFriendRequestButton1();
+	void PushAcceptFriendRequestButton2();
+	void PushAcceptFriendRequestButton3();
+	void PushCancelFriendRequestButton1();
+	void PushCancelFriendRequestButton2();
+	void PushCancelFriendRequestButton3();
 
 private:
 	// 메인 컨텐츠 넘기기 UI 개수
@@ -97,6 +105,12 @@ private:
 	void SetVisibleRequestResult(bool _Visible);
 
 private:
+	bool m_Is_Playing = false;
+	std::set<std::string> m_Recv_Friend;
+	std::set<std::string> m_Recv_Friend_Request;
+
+	void* m_Process = nullptr;
+
 	// 현재 유저 이름
 	std::string m_User_Name;
 
@@ -113,16 +127,27 @@ private:
 	QFont* Bold_Rarge = nullptr;
 	QFont* Bold_Small = nullptr;
 
+	QTreeWidgetItem* _Friend_Request_Item = nullptr;
+
+	std::vector<std::string>		Friend_Request_List;
+	int		Current_Friend_Request_Count = 0;
+
+	QPixmap* Art_Image = nullptr;
+	QPixmap* Design_Image = nullptr;
+	QPixmap* Programming_Image = nullptr;
 	std::map <int, std::string>		Icon_Type_Name;
 	std::map <std::string, QIcon>	Icon_List;
 	std::map <std::string, QPixmap> Icon_img_List;
 	std::map <std::string, QPixmap> BackGround_List;
+	std::map <int, QPushButton*>	AddFriend_Button;
 
 private:
 	QString ConvertKR(QByteArray _Text);
 
 	void addTreeRoot(QString _Name, QString _description, ColColorType _Color_Type);
+	void addFriendRequest(QString _Name, ColColorType _Color_Type);
 	void addTreeChild(QString _Parent_Name, std::string _Name, std::string _description, int _Icon_Type, ColColorType _Color_Type);
 	void ExceptRemoveTreeChild(QString _Except_Parent, QString _Item_Name);
 	void RemoveTreeChildAll();
+	void SortFriendRequest(int _index);
 };

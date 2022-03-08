@@ -24,6 +24,12 @@ struct RealTimeDataBuilder;
 struct AddFriend;
 struct AddFriendBuilder;
 
+struct AcceptFriend;
+struct AcceptFriendBuilder;
+
+struct PlayState;
+struct PlayStateBuilder;
+
 struct CreateUser;
 struct CreateUserBuilder;
 
@@ -276,16 +282,21 @@ inline flatbuffers::Offset<RealTimeData> CreateRealTimeDataDirect(
 struct AddFriend FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef AddFriendBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_NAME = 4
+    VT_ID = 4,
+    VT_NAME = 6
   };
-  const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *name() const {
-    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *>(VT_NAME);
+  const flatbuffers::String *id() const {
+    return GetPointer<const flatbuffers::String *>(VT_ID);
+  }
+  const flatbuffers::String *name() const {
+    return GetPointer<const flatbuffers::String *>(VT_NAME);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
            VerifyOffset(verifier, VT_NAME) &&
-           verifier.VerifyVector(name()) &&
-           verifier.VerifyVectorOfStrings(name()) &&
+           verifier.VerifyString(name()) &&
            verifier.EndTable();
   }
 };
@@ -294,7 +305,10 @@ struct AddFriendBuilder {
   typedef AddFriend Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_name(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>> name) {
+  void add_id(flatbuffers::Offset<flatbuffers::String> id) {
+    fbb_.AddOffset(AddFriend::VT_ID, id);
+  }
+  void add_name(flatbuffers::Offset<flatbuffers::String> name) {
     fbb_.AddOffset(AddFriend::VT_NAME, name);
   }
   explicit AddFriendBuilder(flatbuffers::FlatBufferBuilder &_fbb)
@@ -310,19 +324,164 @@ struct AddFriendBuilder {
 
 inline flatbuffers::Offset<AddFriend> CreateAddFriend(
     flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>> name = 0) {
+    flatbuffers::Offset<flatbuffers::String> id = 0,
+    flatbuffers::Offset<flatbuffers::String> name = 0) {
   AddFriendBuilder builder_(_fbb);
   builder_.add_name(name);
+  builder_.add_id(id);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<AddFriend> CreateAddFriendDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<flatbuffers::Offset<flatbuffers::String>> *name = nullptr) {
-  auto name__ = name ? _fbb.CreateVector<flatbuffers::Offset<flatbuffers::String>>(*name) : 0;
+    const char *id = nullptr,
+    const char *name = nullptr) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  auto name__ = name ? _fbb.CreateString(name) : 0;
   return Eater::LoginLauncher::CreateAddFriend(
       _fbb,
+      id__,
       name__);
+}
+
+struct AcceptFriend FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef AcceptFriendBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4,
+    VT_NAME = 6,
+    VT_ISACCEPT = 8
+  };
+  const flatbuffers::String *id() const {
+    return GetPointer<const flatbuffers::String *>(VT_ID);
+  }
+  const flatbuffers::String *name() const {
+    return GetPointer<const flatbuffers::String *>(VT_NAME);
+  }
+  bool isaccept() const {
+    return GetField<uint8_t>(VT_ISACCEPT, 0) != 0;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyOffset(verifier, VT_NAME) &&
+           verifier.VerifyString(name()) &&
+           VerifyField<uint8_t>(verifier, VT_ISACCEPT) &&
+           verifier.EndTable();
+  }
+};
+
+struct AcceptFriendBuilder {
+  typedef AcceptFriend Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_id(flatbuffers::Offset<flatbuffers::String> id) {
+    fbb_.AddOffset(AcceptFriend::VT_ID, id);
+  }
+  void add_name(flatbuffers::Offset<flatbuffers::String> name) {
+    fbb_.AddOffset(AcceptFriend::VT_NAME, name);
+  }
+  void add_isaccept(bool isaccept) {
+    fbb_.AddElement<uint8_t>(AcceptFriend::VT_ISACCEPT, static_cast<uint8_t>(isaccept), 0);
+  }
+  explicit AcceptFriendBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<AcceptFriend> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<AcceptFriend>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<AcceptFriend> CreateAcceptFriend(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    flatbuffers::Offset<flatbuffers::String> id = 0,
+    flatbuffers::Offset<flatbuffers::String> name = 0,
+    bool isaccept = false) {
+  AcceptFriendBuilder builder_(_fbb);
+  builder_.add_name(name);
+  builder_.add_id(id);
+  builder_.add_isaccept(isaccept);
+  return builder_.Finish();
+}
+
+inline flatbuffers::Offset<AcceptFriend> CreateAcceptFriendDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    const char *name = nullptr,
+    bool isaccept = false) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  auto name__ = name ? _fbb.CreateString(name) : 0;
+  return Eater::LoginLauncher::CreateAcceptFriend(
+      _fbb,
+      id__,
+      name__,
+      isaccept);
+}
+
+struct PlayState FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef PlayStateBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4,
+    VT_STATE = 6
+  };
+  const flatbuffers::String *id() const {
+    return GetPointer<const flatbuffers::String *>(VT_ID);
+  }
+  bool state() const {
+    return GetField<uint8_t>(VT_STATE, 0) != 0;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyField<uint8_t>(verifier, VT_STATE) &&
+           verifier.EndTable();
+  }
+};
+
+struct PlayStateBuilder {
+  typedef PlayState Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_id(flatbuffers::Offset<flatbuffers::String> id) {
+    fbb_.AddOffset(PlayState::VT_ID, id);
+  }
+  void add_state(bool state) {
+    fbb_.AddElement<uint8_t>(PlayState::VT_STATE, static_cast<uint8_t>(state), 0);
+  }
+  explicit PlayStateBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<PlayState> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PlayState>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PlayState> CreatePlayState(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    flatbuffers::Offset<flatbuffers::String> id = 0,
+    bool state = false) {
+  PlayStateBuilder builder_(_fbb);
+  builder_.add_id(id);
+  builder_.add_state(state);
+  return builder_.Finish();
+}
+
+inline flatbuffers::Offset<PlayState> CreatePlayStateDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    bool state = false) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  return Eater::LoginLauncher::CreatePlayState(
+      _fbb,
+      id__,
+      state);
 }
 
 struct CreateUser FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {

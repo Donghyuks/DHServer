@@ -41,14 +41,14 @@ bool DHDB::FriendRequest(std::string _User_ID, std::string _Friend_ID)
 	return m_C2DB->FriendRequest(_User_ID, _Friend_ID);
 }
 
-bool DHDB::FriendAccept(std::string _User_ID, std::string _Friend_ID)
+bool DHDB::FriendAccept(std::string _User_ID, std::string _Friend_ID, bool _Is_Accept)
 {
-	return m_C2DB->FriendAccept(_User_ID, _Friend_ID);
+	return m_C2DB->FriendAccept(_User_ID, _Friend_ID, _Is_Accept);
 }
 
-bool DHDB::GetFriendList(std::string _User_ID, std::vector<std::string>& _Friend_List)
+bool DHDB::GetFriendList(std::string _User_ID, std::set<std::string>& _Friend_List, std::set<std::string>& _Friend_Request_List)
 {
-	return m_C2DB->GetFriendList(_User_ID, _Friend_List);
+	return m_C2DB->GetFriendList(_User_ID, _Friend_List, _Friend_Request_List);
 }
 
 unsigned int DHDB::GetIdentifier(std::string _User_ID)

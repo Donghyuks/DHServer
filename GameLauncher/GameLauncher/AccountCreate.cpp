@@ -8,6 +8,8 @@
 AccountCreate::AccountCreate(DHNetWorkAPI* _Network, QWidget *parent)
 	: QDialog(parent)
 {
+	this->setFixedSize(551, 435);
+
 	m_Login_NetWork = _Network;
 	ui = new Ui::AccountCreate();
 	codec = QTextCodec::codecForName("EUC-KR");	// ÇÑ±ÛÄÚµ¦
